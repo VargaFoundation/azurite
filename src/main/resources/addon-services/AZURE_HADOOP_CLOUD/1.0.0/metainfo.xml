@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<metainfo>
+  <schemaVersion>2.0</schemaVersion>
+  <services>
+    <service>
+      <name>AZURE_HADOOP_CLOUD</name>
+      <displayName>Azure Hadoop Cloud</displayName>
+      <comment>Azure storage integration for Hadoop clusters. Supports ADLS Gen2, WASB, and HDFS storage backends with multiple authentication methods.</comment>
+      <version>1.0.0</version>
+
+      <components>
+        <component>
+          <name>AZURE_HADOOP_CLOUD_CLIENT</name>
+          <displayName>Azure Hadoop Cloud Client</displayName>
+          <category>CLIENT</category>
+          <cardinality>ALL</cardinality>
+          <versionAdvertised>false</versionAdvertised>
+          <commandScript>
+            <script>scripts/azure_hadoop_cloud_client.py</script>
+            <scriptType>PYTHON</scriptType>
+            <timeout>1200</timeout>
+          </commandScript>
+        </component>
+      </components>
+
+      <osSpecifics>
+        <osSpecific>
+          <osFamily>redhat7,redhat8,amazonlinux2</osFamily>
+          <packages>
+            <package><name>python3</name></package>
+            <package><name>python3-pip</name></package>
+            <package><name>curl</name></package>
+          </packages>
+        </osSpecific>
+        <osSpecific>
+          <osFamily>debian9,ubuntu18,ubuntu20,ubuntu22</osFamily>
+          <packages>
+            <package><name>python3</name></package>
+            <package><name>python3-pip</name></package>
+            <package><name>curl</name></package>
+          </packages>
+        </osSpecific>
+      </osSpecifics>
+
+      <themes>
+        <theme>
+          <fileName>theme.json</fileName>
+          <default>true</default>
+        </theme>
+      </themes>
+
+      <quickLinksConfigurations>
+        <quickLinksConfiguration>
+          <fileName>quicklinks.json</fileName>
+          <default>true</default>
+        </quickLinksConfiguration>
+      </quickLinksConfigurations>
+
+      <configuration-dependencies>
+        <config-type>azure-cloud-env</config-type>
+        <config-type>azure-storage-site</config-type>
+        <config-type>azure-identity-site</config-type>
+        <config-type>core-site</config-type>
+        <config-type>hdfs-site</config-type>
+      </configuration-dependencies>
+
+      <restartRequiredAfterChange>true</restartRequiredAfterChange>
+    </service>
+  </services>
+</metainfo>

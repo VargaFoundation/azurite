@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.apache.ambari</groupId>
+  <artifactId>azure-hadoop-cloud-mpack</artifactId>
+  <version>1.0.0.0</version>
+  <packaging>pom</packaging>
+
+  <name>Azure Hadoop Cloud Management Pack</name>
+  <description>
+    Ambari Management Pack for deploying Hadoop clusters on Azure.
+    Provides ADLS Gen2/WASB/HDFS storage integration, VM lifecycle management, and autoscaling.
+  </description>
+
+  <properties>
+    <mpack.name>azure-hadoop-cloud-mpack</mpack.name>
+    <mpack.version>1.0.0.0</mpack.version>
+    <ambari.version>2.7.0.0</ambari.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <python.test.dir>${project.basedir}/src/test/python</python.test.dir>
+    <python.src.dir>${project.basedir}/src/main/resources/addon-services</python.src.dir>
+  </properties>
+
+  <build>
+    <plugins>
+      <!-- Resource filtering for mpack.json version substitution -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+        <executions>
+          <execution>
+            <id>filter-mpack-descriptor</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/resources</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>src/main/resources</directory>
+                  <filtering>true</filtering>
+                  <includes>
+                    <include>mpack.json</include>
+                  </includes>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Python unit tests -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>python-unit-tests</id>
+            <phase>test</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>python3</executable>
+              <workingDirectory>${project.basedir}</workingDirectory>
+              <arguments>
+                <argument>-m</argument>
+                <argument>unittest</argument>
+                <argument>discover</argument>
+                <argument>-s</argument>
+                <argument>${python.test.dir}</argument>
+                <argument>-p</argument>
+                <argument>Test*.py</argument>
+                <argument>-v</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Assembly plugin to create mpack tarball -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.6.0</version>
+        <configuration>
+          <descriptors>
+            <descriptor>src/main/assembly/mpack.xml</descriptor>
+          </descriptors>
+          <finalName>${mpack.name}-${mpack.version}</finalName>
+          <appendAssemblyId>false</appendAssemblyId>
+          <tarLongFileMode>gnu</tarLongFileMode>
+        </configuration>
+        <executions>
+          <execution>
+            <id>build-mpack-tarball</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

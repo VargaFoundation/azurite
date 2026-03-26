@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+<metainfo>
+  <schemaVersion>2.0</schemaVersion>
+  <services>
+    <service>
+      <name>AZURE_VM_MANAGER</name>
+      <displayName>Azure VM Manager</displayName>
+      <comment>Manages Azure VM lifecycle for Hadoop cluster nodes. Supports provisioning, deletion, and scaling of Azure VMs via ARM.</comment>
+      <version>1.0.0</version>
+
+      <components>
+        <component>
+          <name>AZURE_VM_MANAGER_MASTER</name>
+          <displayName>Azure VM Manager</displayName>
+          <category>MASTER</category>
+          <cardinality>1</cardinality>
+          <versionAdvertised>false</versionAdvertised>
+          <commandScript>
+            <script>scripts/azure_vm_manager_master.py</script>
+            <scriptType>PYTHON</scriptType>
+            <timeout>5000</timeout>
+          </commandScript>
+          <customCommands>
+            <customCommand>
+              <name>PROVISION_WORKERS</name>
+              <commandScript>
+                <script>scripts/azure_vm_manager_master.py</script>
+                <scriptType>PYTHON</scriptType>
+                <timeout>600</timeout>
+              </commandScript>
+            </customCommand>
+            <customCommand>
+              <name>DECOMMISSION_WORKERS</name>
+              <commandScript>
+                <script>scripts/azure_vm_manager_master.py</script>
+                <scriptType>PYTHON</scriptType>
+                <timeout>600</timeout>
+              </commandScript>
+            </customCommand>
+            <customCommand>
+              <name>LIST_VMS</name>
+              <commandScript>
+                <script>scripts/azure_vm_manager_master.py</script>
+                <scriptType>PYTHON</scriptType>
+                <timeout>120</timeout>
+              </commandScript>
+            </customCommand>
+          </customCommands>
+        </component>
+      </components>
+
+      <osSpecifics>
+        <osSpecific>
+          <osFamily>any</osFamily>
+          <packages>
+            <package><name>python3</name></package>
+            <package><name>python3-pip</name></package>
+          </packages>
+        </osSpecific>
+      </osSpecifics>
+
+      <requiredServices>
+        <service>AZURE_HADOOP_CLOUD</service>
+      </requiredServices>
+
+      <configuration-dependencies>
+        <config-type>azure-vm-manager-env</config-type>
+        <config-type>azure-vm-manager-site</config-type>
+        <config-type>azure-vm-pool-site</config-type>
+      </configuration-dependencies>
+
+      <restartRequiredAfterChange>true</restartRequiredAfterChange>
+
+      <themes>
+        <theme>
+          <fileName>theme.json</fileName>
+          <default>true</default>
+        </theme>
+      </themes>
+
+      <quickLinksConfigurations>
+        <quickLinksConfiguration>
+          <fileName>quicklinks.json</fileName>
+          <default>true</default>
+        </quickLinksConfiguration>
+      </quickLinksConfigurations>
+    </service>
+  </services>
+</metainfo>

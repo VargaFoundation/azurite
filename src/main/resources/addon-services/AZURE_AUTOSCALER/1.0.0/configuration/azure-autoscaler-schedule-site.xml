@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration supports_adding_forbidden="false">
+
+  <property>
+    <name>schedule.timezone</name>
+    <value>UTC</value>
+    <display-name>Schedule Timezone</display-name>
+    <description>Timezone for evaluating schedule rules (e.g., UTC, Europe/Paris, US/Eastern).</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>schedule.rules</name>
+    <value>[]</value>
+    <display-name>Schedule Rules (JSON)</display-name>
+    <description>JSON array of schedule rules. Each rule: {"cron": "0 8 * * MON-FRI", "target_count": 10, "label": "Business hours"}.</description>
+    <value-attributes>
+      <type>multiLine</type>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+</configuration>

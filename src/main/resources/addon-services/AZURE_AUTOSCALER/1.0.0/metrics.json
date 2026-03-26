@@ -1,0 +1,20 @@
+{
+  "AZURE_AUTOSCALER_MASTER": {
+    "Component": [
+      {
+        "type": "ganglia",
+        "metrics": {
+          "default": {
+            "metrics/autoscaler/current_worker_count": {"metric": "autoscaler.workers.current", "pointInTime": true, "temporal": true},
+            "metrics/autoscaler/target_worker_count": {"metric": "autoscaler.workers.target", "pointInTime": true, "temporal": true},
+            "metrics/autoscaler/scale_out_events": {"metric": "autoscaler.events.scale_out", "pointInTime": true, "temporal": true},
+            "metrics/autoscaler/scale_in_events": {"metric": "autoscaler.events.scale_in", "pointInTime": true, "temporal": true},
+            "metrics/autoscaler/avg_cpu_pct": {"metric": "autoscaler.cluster.cpu.pct", "pointInTime": true, "temporal": true},
+            "metrics/autoscaler/avg_memory_pct": {"metric": "autoscaler.cluster.memory.pct", "pointInTime": true, "temporal": true},
+            "metrics/autoscaler/yarn_pending_containers": {"metric": "autoscaler.yarn.pending.containers", "pointInTime": true, "temporal": true}
+          }
+        }
+      }
+    ]
+  }
+}

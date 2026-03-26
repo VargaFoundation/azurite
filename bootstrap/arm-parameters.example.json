@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "clusterName": {
+      "value": "azurite"
+    },
+    "adminUsername": {
+      "value": "azureadmin"
+    },
+    "sshPublicKey": {
+      "value": "ssh-rsa AAAA...your-public-key-here... user@host"
+    },
+    "headNodeSize": {
+      "value": "Standard_D4_v3"
+    },
+    "workerNodeSize": {
+      "value": "Standard_D4_v3"
+    },
+    "zkNodeSize": {
+      "value": "Standard_A2_v2"
+    },
+    "workerCount": {
+      "value": 3
+    },
+    "ambariVersion": {
+      "value": "2.7.5.0"
+    },
+    "mpackUrl": {
+      "value": ""
+    }
+  }
+}

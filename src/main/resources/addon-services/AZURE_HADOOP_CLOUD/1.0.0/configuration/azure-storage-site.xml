@@ -1,0 +1,220 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration supports_adding_forbidden="false">
+
+  <property>
+    <name>azure.storage.account.name</name>
+    <value></value>
+    <display-name>Storage Account Name</display-name>
+    <description>Azure storage account name (without domain suffix).</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-cloud-env</type>
+        <name>azure_storage_backend</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.storage.container.name</name>
+    <value></value>
+    <display-name>Storage Container Name</display-name>
+    <description>Azure storage container (ADLS Gen2 filesystem or Blob container).</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-cloud-env</type>
+        <name>azure_storage_backend</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.storage.auth.type</name>
+    <value>managed_identity</value>
+    <display-name>Authentication Type</display-name>
+    <description>Authentication method for Azure storage access.</description>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry>
+          <value>managed_identity</value>
+          <label>Managed Identity</label>
+        </entry>
+        <entry>
+          <value>storage_key</value>
+          <label>Storage Account Key</label>
+        </entry>
+        <entry>
+          <value>sas_token</value>
+          <label>SAS Token</label>
+        </entry>
+        <entry>
+          <value>oauth2_client_credential</value>
+          <label>OAuth2 Service Principal</label>
+        </entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-cloud-env</type>
+        <name>azure_storage_backend</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.storage.account.key</name>
+    <value></value>
+    <display-name>Storage Account Key</display-name>
+    <description>Storage account access key. Required when auth type is storage_key.</description>
+    <property-type>PASSWORD</property-type>
+    <value-attributes>
+      <type>password</type>
+      <empty-value-valid>true</empty-value-valid>
+      <keystore>true</keystore>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-storage-site</type>
+        <name>azure.storage.auth.type</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.storage.sas.token</name>
+    <value></value>
+    <display-name>SAS Token</display-name>
+    <description>Shared Access Signature token. Required when auth type is sas_token.</description>
+    <property-type>PASSWORD</property-type>
+    <value-attributes>
+      <type>password</type>
+      <empty-value-valid>true</empty-value-valid>
+      <keystore>true</keystore>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-storage-site</type>
+        <name>azure.storage.auth.type</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.managed.identity.client.id</name>
+    <value></value>
+    <display-name>Managed Identity Client ID</display-name>
+    <description>Client ID of the user-assigned managed identity. Required when auth type is managed_identity.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-storage-site</type>
+        <name>azure.storage.auth.type</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.managed.identity.tenant.id</name>
+    <value></value>
+    <display-name>Managed Identity Tenant ID</display-name>
+    <description>Microsoft Entra tenant ID for managed identity authentication.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-storage-site</type>
+        <name>azure.storage.auth.type</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.oauth2.client.id</name>
+    <value></value>
+    <display-name>OAuth2 Client ID</display-name>
+    <description>Application (client) ID for service principal authentication.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-storage-site</type>
+        <name>azure.storage.auth.type</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.oauth2.client.secret</name>
+    <value></value>
+    <display-name>OAuth2 Client Secret</display-name>
+    <description>Client secret for service principal authentication.</description>
+    <property-type>PASSWORD</property-type>
+    <value-attributes>
+      <type>password</type>
+      <empty-value-valid>true</empty-value-valid>
+      <keystore>true</keystore>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-storage-site</type>
+        <name>azure.storage.auth.type</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.oauth2.client.endpoint</name>
+    <value></value>
+    <display-name>OAuth2 Token Endpoint</display-name>
+    <description>OAuth2 token endpoint URL. Format: https://login.microsoftonline.com/{tenant-id}/oauth2/token</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-storage-site</type>
+        <name>azure.storage.auth.type</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.wasb.secure.mode</name>
+    <value>true</value>
+    <display-name>WASB Secure Mode</display-name>
+    <description>Use wasbs:// (SSL) instead of wasb:// for Blob Storage access.</description>
+    <value-attributes>
+      <type>boolean</type>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-cloud-env</type>
+        <name>azure_storage_backend</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+</configuration>

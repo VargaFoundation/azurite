@@ -1,0 +1,54 @@
+<view>
+  <name>AZURE_CLUSTER_VIEW</name>
+  <label>Azure Cluster</label>
+  <version>1.0.0</version>
+  <description>Visual dashboard for Azure cluster resource status, VM lifecycle management, and autoscaling activity.</description>
+  <min-ambari-version>2.7.0</min-ambari-version>
+
+  <parameter>
+    <name>vm.manager.url</name>
+    <description>URL of the Azure VM Manager REST API</description>
+    <label>VM Manager URL</label>
+    <placeholder>http://localhost:8470</placeholder>
+    <required>true</required>
+  </parameter>
+
+  <parameter>
+    <name>autoscaler.url</name>
+    <description>URL of the Azure Autoscaler REST API</description>
+    <label>Autoscaler URL</label>
+    <placeholder>http://localhost:8471</placeholder>
+    <required>false</required>
+  </parameter>
+
+  <parameter>
+    <name>storage.backend</name>
+    <description>Configured storage backend (adls_gen2, wasb, hdfs)</description>
+    <label>Storage Backend</label>
+    <required>false</required>
+  </parameter>
+
+  <auto-instance>
+    <name>AUTO_AZURE_CLUSTER_INSTANCE</name>
+    <label>Azure Cluster</label>
+    <description>Auto-created instance linked to Azure services</description>
+    <stack-id>HDP-3.1</stack-id>
+    <services>
+      <service>
+        <name>AZURE_VM_MANAGER</name>
+      </service>
+    </services>
+    <property>
+      <key>vm.manager.url</key>
+      <value>http://${AZURE_VM_MANAGER_MASTER_HOST}:${azure-vm-manager-env/vm_manager_port}</value>
+    </property>
+    <property>
+      <key>autoscaler.url</key>
+      <value>http://${AZURE_AUTOSCALER_MASTER_HOST}:${azure-autoscaler-env/autoscaler_port}</value>
+    </property>
+    <property>
+      <key>storage.backend</key>
+      <value>${azure-cloud-env/azure_storage_backend}</value>
+    </property>
+  </auto-instance>
+</view>

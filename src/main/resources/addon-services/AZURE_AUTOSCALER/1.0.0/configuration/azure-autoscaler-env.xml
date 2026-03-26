@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration supports_adding_forbidden="true">
+
+  <property>
+    <name>autoscaler_user</name>
+    <value>azurevmgr</value>
+    <display-name>Autoscaler User</display-name>
+    <description>User to run the Autoscaler daemon (same as VM Manager).</description>
+    <property-type>USER</property-type>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler_group</name>
+    <value>hadoop</value>
+    <display-name>Autoscaler Group</display-name>
+    <property-type>GROUP</property-type>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler_log_dir</name>
+    <value>/var/log/azure-autoscaler</value>
+    <display-name>Log Directory</display-name>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler_pid_dir</name>
+    <value>/var/run/azure-autoscaler</value>
+    <display-name>PID Directory</display-name>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler_port</name>
+    <value>8471</value>
+    <display-name>REST API Port</display-name>
+    <value-attributes>
+      <type>int</type>
+      <minimum>1024</minimum>
+      <maximum>65535</maximum>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler_tls_enabled</name>
+    <value>false</value>
+    <display-name>TLS Enabled</display-name>
+    <description>Enable TLS/HTTPS for the Autoscaler REST API.</description>
+    <value-attributes><type>boolean</type></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler_tls_cert_path</name>
+    <value></value>
+    <display-name>TLS Certificate Path</display-name>
+    <description>Path to the TLS certificate (PEM). If empty and TLS enabled, a self-signed cert is generated.</description>
+    <value-attributes><empty-value-valid>true</empty-value-valid></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler_tls_key_path</name>
+    <value></value>
+    <display-name>TLS Private Key Path</display-name>
+    <description>Path to the TLS private key (PEM).</description>
+    <value-attributes><empty-value-valid>true</empty-value-valid></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+</configuration>

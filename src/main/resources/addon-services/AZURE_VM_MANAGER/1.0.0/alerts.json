@@ -1,0 +1,49 @@
+{
+  "AZURE_VM_MANAGER": {
+    "AZURE_VM_MANAGER_MASTER": [
+      {
+        "name": "vm_manager_process",
+        "label": "Azure VM Manager Process",
+        "description": "Checks if the VM Manager daemon is running.",
+        "interval": 1,
+        "scope": "HOST",
+        "enabled": true,
+        "source": {
+          "type": "PORT",
+          "uri": "{{azure-vm-manager-env/vm_manager_port}}",
+          "default_port": 8470,
+          "reporting": {
+            "ok": {"text": "VM Manager is running on port {0}"},
+            "critical": {"text": "VM Manager is NOT running on port {0}"}
+          }
+        }
+      },
+      {
+        "name": "azure_vm_health",
+        "label": "Azure VM Pool Health",
+        "description": "Checks if all managed VMs are in running state.",
+        "interval": 5,
+        "scope": "SERVICE",
+        "enabled": true,
+        "source": {
+          "type": "SCRIPT",
+          "path": "AZURE_VM_MANAGER/1.0.0/package/scripts/alerts/check_vm_pool_health.py",
+          "parameters": []
+        }
+      },
+      {
+        "name": "azure_api_connectivity",
+        "label": "Azure ARM API Connectivity",
+        "description": "Checks if the Azure Resource Manager API is reachable.",
+        "interval": 5,
+        "scope": "SERVICE",
+        "enabled": true,
+        "source": {
+          "type": "SCRIPT",
+          "path": "AZURE_VM_MANAGER/1.0.0/package/scripts/alerts/check_azure_arm_api.py",
+          "parameters": []
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "name": "default",
+  "description": "Default theme for Azure Autoscaler service",
+  "configuration": {
+    "layouts": [
+      {
+        "name": "default",
+        "tabs": [
+          {
+            "name": "settings",
+            "display-name": "Autoscaler Settings",
+            "layout": {
+              "tab-columns": "2",
+              "tab-rows": "3",
+              "sections": [
+                {
+                  "name": "section-mode",
+                  "display-name": "Scaling Mode",
+                  "row-index": "0", "column-index": "0", "row-span": "1", "column-span": "1",
+                  "section-columns": "1", "section-rows": "2",
+                  "subsections": [{"name": "subsection-mode", "row-index": "0", "column-index": "0", "row-span": "2", "column-span": "1"}]
+                },
+                {
+                  "name": "section-thresholds",
+                  "display-name": "Thresholds",
+                  "row-index": "0", "column-index": "1", "row-span": "1", "column-span": "1",
+                  "section-columns": "1", "section-rows": "4",
+                  "subsections": [{"name": "subsection-thresholds", "row-index": "0", "column-index": "0", "row-span": "4", "column-span": "1"}]
+                },
+                {
+                  "name": "section-timing",
+                  "display-name": "Timing",
+                  "row-index": "1", "column-index": "0", "row-span": "1", "column-span": "2",
+                  "section-columns": "2", "section-rows": "3",
+                  "subsections": [{"name": "subsection-timing", "row-index": "0", "column-index": "0", "row-span": "3", "column-span": "2"}]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "placement": {
+      "configs": [
+        {"config": "azure-autoscaler-site/autoscaler.enabled", "subsection-name": "subsection-mode"},
+        {"config": "azure-autoscaler-site/autoscaler.mode", "subsection-name": "subsection-mode"},
+        {"config": "azure-autoscaler-site/autoscaler.metrics.source", "subsection-name": "subsection-mode"},
+        {"config": "azure-autoscaler-site/autoscaler.cpu.scale.out.threshold", "subsection-name": "subsection-thresholds"},
+        {"config": "azure-autoscaler-site/autoscaler.cpu.scale.in.threshold", "subsection-name": "subsection-thresholds"},
+        {"config": "azure-autoscaler-site/autoscaler.memory.scale.out.threshold", "subsection-name": "subsection-thresholds"},
+        {"config": "azure-autoscaler-site/autoscaler.memory.scale.in.threshold", "subsection-name": "subsection-thresholds"},
+        {"config": "azure-autoscaler-site/autoscaler.evaluation.interval.seconds", "subsection-name": "subsection-timing"},
+        {"config": "azure-autoscaler-site/autoscaler.cooldown.scale.out.seconds", "subsection-name": "subsection-timing"},
+        {"config": "azure-autoscaler-site/autoscaler.cooldown.scale.in.seconds", "subsection-name": "subsection-timing"},
+        {"config": "azure-autoscaler-site/autoscaler.scale.out.increment", "subsection-name": "subsection-timing"},
+        {"config": "azure-autoscaler-site/autoscaler.scale.in.decrement", "subsection-name": "subsection-timing"}
+      ]
+    },
+    "widgets": [
+      {"config": "azure-autoscaler-site/autoscaler.mode", "widget": {"type": "combo"}},
+      {"config": "azure-autoscaler-site/autoscaler.metrics.source", "widget": {"type": "combo"}}
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "services": [
+    {
+      "name": "AZURE_HADOOP_CLOUD",
+      "identities": [
+        {
+          "name": "azure_cloud_spnego",
+          "reference": "/spnego"
+        }
+      ],
+      "auth_to_local_properties": [
+        "core-site/hadoop.security.auth_to_local"
+      ],
+      "configurations": [
+        {
+          "core-site": {
+            "hadoop.security.authentication": "kerberos",
+            "hadoop.security.authorization": "true"
+          }
+        }
+      ],
+      "components": [
+        {
+          "name": "AZURE_HADOOP_CLOUD_CLIENT",
+          "identities": [
+            {
+              "name": "azure_cloud_user",
+              "principal": {
+                "value": "${azure-cloud-env/azure_cloud_user}@${realm}",
+                "type": "user",
+                "configuration": "azure-cloud-env/azure_cloud_principal_name"
+              },
+              "keytab": {
+                "file": "${keytab_dir}/azure_cloud.headless.keytab",
+                "owner": {
+                  "name": "${azure-cloud-env/azure_cloud_user}",
+                  "access": "r"
+                },
+                "group": {
+                  "name": "${azure-cloud-env/azure_cloud_group}",
+                  "access": ""
+                },
+                "configuration": "azure-cloud-env/azure_cloud_keytab"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

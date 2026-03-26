@@ -1,0 +1,197 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration supports_adding_forbidden="false">
+
+  <property>
+    <name>autoscaler.enabled</name>
+    <value>true</value>
+    <display-name>Autoscaling Enabled</display-name>
+    <description>Master toggle for autoscaling.</description>
+    <value-attributes><type>boolean</type></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.mode</name>
+    <value>load_based</value>
+    <display-name>Autoscaling Mode</display-name>
+    <description>Scaling mode: load-based (metrics-driven), schedule-based (cron), or hybrid (both).</description>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry><value>load_based</value><label>Load-Based (Metrics)</label></entry>
+        <entry><value>schedule_based</value><label>Schedule-Based (Cron)</label></entry>
+        <entry><value>hybrid</value><label>Hybrid (Both)</label></entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.evaluation.interval.seconds</name>
+    <value>60</value>
+    <display-name>Evaluation Interval (seconds)</display-name>
+    <description>How often to evaluate metrics for scaling decisions.</description>
+    <value-attributes><type>int</type><minimum>10</minimum><maximum>600</maximum><unit>seconds</unit></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.scale.out.trigger.duration.seconds</name>
+    <value>300</value>
+    <display-name>Scale-Out Trigger Duration (seconds)</display-name>
+    <description>Metrics must exceed thresholds for this duration before scale-out triggers.</description>
+    <value-attributes><type>int</type><minimum>60</minimum><maximum>1800</maximum><unit>seconds</unit></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.scale.in.trigger.duration.seconds</name>
+    <value>300</value>
+    <display-name>Scale-In Trigger Duration (seconds)</display-name>
+    <description>Metrics must be below thresholds for this duration before scale-in triggers.</description>
+    <value-attributes><type>int</type><minimum>60</minimum><maximum>1800</maximum><unit>seconds</unit></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.cooldown.scale.out.seconds</name>
+    <value>300</value>
+    <display-name>Scale-Out Cooldown (seconds)</display-name>
+    <description>Minimum time between consecutive scale-out actions.</description>
+    <value-attributes><type>int</type><minimum>60</minimum><maximum>3600</maximum><unit>seconds</unit></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.cooldown.scale.in.seconds</name>
+    <value>600</value>
+    <display-name>Scale-In Cooldown (seconds)</display-name>
+    <description>Minimum time between consecutive scale-in actions (longer to prevent thrashing).</description>
+    <value-attributes><type>int</type><minimum>60</minimum><maximum>3600</maximum><unit>seconds</unit></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.scale.out.increment</name>
+    <value>1</value>
+    <display-name>Scale-Out Increment</display-name>
+    <description>Number of nodes to add per scale-out event.</description>
+    <value-attributes><type>int</type><minimum>1</minimum><maximum>10</maximum></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.scale.in.decrement</name>
+    <value>1</value>
+    <display-name>Scale-In Decrement</display-name>
+    <description>Number of nodes to remove per scale-in event.</description>
+    <value-attributes><type>int</type><minimum>1</minimum><maximum>10</maximum></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.cpu.scale.out.threshold</name>
+    <value>80</value>
+    <display-name>CPU Scale-Out Threshold (%)</display-name>
+    <description>Average cluster CPU usage above which to trigger scale-out.</description>
+    <value-attributes><type>int</type><minimum>50</minimum><maximum>100</maximum><unit>%</unit></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.cpu.scale.in.threshold</name>
+    <value>30</value>
+    <display-name>CPU Scale-In Threshold (%)</display-name>
+    <description>Average cluster CPU usage below which to trigger scale-in.</description>
+    <value-attributes><type>int</type><minimum>0</minimum><maximum>50</maximum><unit>%</unit></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.memory.scale.out.threshold</name>
+    <value>80</value>
+    <display-name>Memory Scale-Out Threshold (%)</display-name>
+    <value-attributes><type>int</type><minimum>50</minimum><maximum>100</maximum><unit>%</unit></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.memory.scale.in.threshold</name>
+    <value>30</value>
+    <display-name>Memory Scale-In Threshold (%)</display-name>
+    <value-attributes><type>int</type><minimum>0</minimum><maximum>50</maximum><unit>%</unit></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.yarn.pending.containers.scale.out.threshold</name>
+    <value>10</value>
+    <display-name>YARN Pending Containers Threshold</display-name>
+    <description>Number of pending YARN containers above which to trigger scale-out.</description>
+    <value-attributes><type>int</type><minimum>1</minimum><maximum>1000</maximum></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.yarn.available.memory.scale.in.threshold.pct</name>
+    <value>60</value>
+    <display-name>YARN Available Memory Scale-In (%)</display-name>
+    <description>YARN available memory percentage above which to consider scale-in.</description>
+    <value-attributes><type>int</type><minimum>20</minimum><maximum>90</maximum><unit>%</unit></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.graceful.decommission.timeout.seconds</name>
+    <value>3600</value>
+    <display-name>Graceful Decommission Timeout (seconds)</display-name>
+    <description>Maximum time to wait for YARN graceful decommission before force removal.</description>
+    <value-attributes><type>int</type><minimum>300</minimum><maximum>7200</maximum><unit>seconds</unit></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.scale.only.task.nodes</name>
+    <value>true</value>
+    <display-name>Scale Only Task Nodes</display-name>
+    <description>Only scale task-type worker nodes (no HDFS rebalancing). Recommended.</description>
+    <value-attributes><type>boolean</type></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.yarn.resourcemanager.url</name>
+    <value></value>
+    <display-name>YARN ResourceManager URL</display-name>
+    <description>YARN RM REST API URL (auto-detected if empty).</description>
+    <value-attributes><empty-value-valid>true</empty-value-valid></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.vm.manager.url</name>
+    <value>http://localhost:8470</value>
+    <display-name>VM Manager URL</display-name>
+    <description>URL of the Azure VM Manager REST API.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>autoscaler.metrics.source</name>
+    <value>yarn_and_system</value>
+    <display-name>Metrics Source</display-name>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry><value>yarn_only</value><label>YARN Only</label></entry>
+        <entry><value>system_only</value><label>System Only (CPU/RAM)</label></entry>
+        <entry><value>yarn_and_system</value><label>YARN + System</label></entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+</configuration>

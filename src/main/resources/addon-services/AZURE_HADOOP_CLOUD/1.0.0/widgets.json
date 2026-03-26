@@ -1,0 +1,91 @@
+{
+  "layouts": [
+    {
+      "layout_name": "default_azure_hadoop_cloud_dashboard",
+      "display_name": "Azure Storage Dashboard",
+      "section_name": "AZURE_HADOOP_CLOUD_SUMMARY",
+      "widgetLayoutInfo": [
+        {
+          "widget_name": "Azure Storage Read Throughput",
+          "metrics": [
+            {
+              "name": "metrics/azure/storage/read_bytes",
+              "service_name": "AZURE_HADOOP_CLOUD",
+              "component_name": "AZURE_HADOOP_CLOUD_CLIENT"
+            }
+          ],
+          "values": [
+            {
+              "name": "Read Bytes/s",
+              "value": "${metrics/azure/storage/read_bytes}"
+            }
+          ],
+          "properties": {
+            "graph_type": "LINE",
+            "time_range": "1"
+          },
+          "widget_type": "GRAPH"
+        },
+        {
+          "widget_name": "Azure Storage Write Throughput",
+          "metrics": [
+            {
+              "name": "metrics/azure/storage/write_bytes",
+              "service_name": "AZURE_HADOOP_CLOUD",
+              "component_name": "AZURE_HADOOP_CLOUD_CLIENT"
+            }
+          ],
+          "values": [
+            {
+              "name": "Write Bytes/s",
+              "value": "${metrics/azure/storage/write_bytes}"
+            }
+          ],
+          "properties": {
+            "graph_type": "LINE",
+            "time_range": "1"
+          },
+          "widget_type": "GRAPH"
+        },
+        {
+          "widget_name": "Azure Storage Latency",
+          "metrics": [
+            {
+              "name": "metrics/azure/storage/latency_ms",
+              "service_name": "AZURE_HADOOP_CLOUD",
+              "component_name": "AZURE_HADOOP_CLOUD_CLIENT"
+            }
+          ],
+          "values": [
+            {
+              "name": "Latency (ms)",
+              "value": "${metrics/azure/storage/latency_ms}"
+            }
+          ],
+          "properties": {
+            "graph_type": "LINE",
+            "time_range": "1"
+          },
+          "widget_type": "GRAPH"
+        },
+        {
+          "widget_name": "Azure Storage Error Rate",
+          "metrics": [
+            {
+              "name": "metrics/azure/storage/errors",
+              "service_name": "AZURE_HADOOP_CLOUD",
+              "component_name": "AZURE_HADOOP_CLOUD_CLIENT"
+            }
+          ],
+          "values": [
+            {
+              "name": "Errors",
+              "value": "${metrics/azure/storage/errors}"
+            }
+          ],
+          "widget_type": "NUMBER"
+        }
+      ]
+    }
+  ]
+}

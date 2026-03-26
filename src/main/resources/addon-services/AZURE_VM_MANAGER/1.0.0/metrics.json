@@ -1,0 +1,33 @@
+{
+  "AZURE_VM_MANAGER_MASTER": {
+    "Component": [
+      {
+        "type": "ganglia",
+        "metrics": {
+          "default": {
+            "metrics/vm_manager/total_vms": {
+              "metric": "vm_manager.vms.total",
+              "pointInTime": true,
+              "temporal": true
+            },
+            "metrics/vm_manager/running_vms": {
+              "metric": "vm_manager.vms.running",
+              "pointInTime": true,
+              "temporal": true
+            },
+            "metrics/vm_manager/worker_vms": {
+              "metric": "vm_manager.vms.workers",
+              "pointInTime": true,
+              "temporal": true
+            },
+            "metrics/vm_manager/provisioning_time_ms": {
+              "metric": "vm_manager.provisioning.time.ms",
+              "pointInTime": true,
+              "temporal": true
+            }
+          }
+        }
+      }
+    ]
+  }
+}

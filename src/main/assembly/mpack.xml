@@ -1,0 +1,33 @@
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 http://maven.apache.org/xsd/assembly-2.2.0.xsd">
+  <id>mpack</id>
+  <formats>
+    <format>tar.gz</format>
+  </formats>
+  <includeBaseDirectory>true</includeBaseDirectory>
+  <baseDirectory>${mpack.name}-${mpack.version}</baseDirectory>
+  <fileSets>
+    <fileSet>
+      <directory>${project.basedir}/src/main/resources</directory>
+      <outputDirectory>/</outputDirectory>
+      <includes>
+        <include>addon-services/**</include>
+        <include>views/**</include>
+      </includes>
+      <excludes>
+        <exclude>**/__pycache__/**</exclude>
+        <exclude>**/*.pyc</exclude>
+        <exclude>**/test/**</exclude>
+        <exclude>**/Test*.py</exclude>
+      </excludes>
+    </fileSet>
+    <fileSet>
+      <directory>${project.build.directory}/resources</directory>
+      <outputDirectory>/</outputDirectory>
+      <includes>
+        <include>mpack.json</include>
+      </includes>
+    </fileSet>
+  </fileSets>
+</assembly>

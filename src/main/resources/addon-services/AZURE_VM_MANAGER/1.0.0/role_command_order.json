@@ -1,0 +1,5 @@
+{
+  "general_deps": {
+    "AZURE_VM_MANAGER_MASTER-START": ["AZURE_HADOOP_CLOUD_CLIENT-INSTALL"]
+  }
+}

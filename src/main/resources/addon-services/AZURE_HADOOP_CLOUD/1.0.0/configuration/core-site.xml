@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration supports_adding_forbidden="false">
+
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://localhost:8020</value>
+    <display-name>Default Filesystem</display-name>
+    <description>The default filesystem URI. Auto-computed by the service advisor based on storage backend selection.</description>
+    <depends-on>
+      <property>
+        <type>azure-cloud-env</type>
+        <name>azure_storage_backend</name>
+      </property>
+      <property>
+        <type>azure-storage-site</type>
+        <name>azure.storage.account.name</name>
+      </property>
+      <property>
+        <type>azure-storage-site</type>
+        <name>azure.storage.container.name</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>fs.abfs.impl</name>
+    <value>org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem</value>
+    <display-name>ABFS Implementation</display-name>
+    <description>Filesystem implementation class for abfs:// scheme.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>fs.abfss.impl</name>
+    <value>org.apache.hadoop.fs.azurebfs.SecureAzureBlobFileSystem</value>
+    <display-name>ABFSS Implementation</display-name>
+    <description>Filesystem implementation class for abfss:// (secure) scheme.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>fs.wasb.impl</name>
+    <value>org.apache.hadoop.fs.azure.NativeAzureFileSystem</value>
+    <display-name>WASB Implementation</display-name>
+    <description>Filesystem implementation class for wasb:// scheme.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>fs.wasbs.impl</name>
+    <value>org.apache.hadoop.fs.azure.NativeAzureFileSystem$Secure</value>
+    <display-name>WASBS Implementation</display-name>
+    <description>Filesystem implementation class for wasbs:// (secure) scheme.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+</configuration>

@@ -1,0 +1,43 @@
+{
+  "AZURE_HADOOP_CLOUD_CLIENT": {
+    "Component": [
+      {
+        "type": "ganglia",
+        "metrics": {
+          "default": {
+            "metrics/azure/storage/read_bytes": {
+              "metric": "azure.storage.read.bytes",
+              "pointInTime": true,
+              "temporal": true
+            },
+            "metrics/azure/storage/write_bytes": {
+              "metric": "azure.storage.write.bytes",
+              "pointInTime": true,
+              "temporal": true
+            },
+            "metrics/azure/storage/read_ops": {
+              "metric": "azure.storage.read.ops",
+              "pointInTime": true,
+              "temporal": true
+            },
+            "metrics/azure/storage/write_ops": {
+              "metric": "azure.storage.write.ops",
+              "pointInTime": true,
+              "temporal": true
+            },
+            "metrics/azure/storage/latency_ms": {
+              "metric": "azure.storage.latency.ms",
+              "pointInTime": true,
+              "temporal": true
+            },
+            "metrics/azure/storage/errors": {
+              "metric": "azure.storage.errors",
+              "pointInTime": true,
+              "temporal": true
+            }
+          }
+        }
+      }
+    ]
+  }
+}

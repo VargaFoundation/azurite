@@ -1,0 +1,37 @@
+{
+  "layouts": [
+    {
+      "layout_name": "default_azure_vm_manager_dashboard",
+      "display_name": "VM Manager Dashboard",
+      "section_name": "AZURE_VM_MANAGER_SUMMARY",
+      "widgetLayoutInfo": [
+        {
+          "widget_name": "Total Managed VMs",
+          "metrics": [
+            {"name": "metrics/vm_manager/total_vms", "service_name": "AZURE_VM_MANAGER", "component_name": "AZURE_VM_MANAGER_MASTER"}
+          ],
+          "values": [{"name": "Total VMs", "value": "${metrics/vm_manager/total_vms}"}],
+          "widget_type": "NUMBER"
+        },
+        {
+          "widget_name": "Worker VM Count",
+          "metrics": [
+            {"name": "metrics/vm_manager/worker_vms", "service_name": "AZURE_VM_MANAGER", "component_name": "AZURE_VM_MANAGER_MASTER"}
+          ],
+          "values": [{"name": "Workers", "value": "${metrics/vm_manager/worker_vms}"}],
+          "properties": {"graph_type": "LINE", "time_range": "12"},
+          "widget_type": "GRAPH"
+        },
+        {
+          "widget_name": "VM Provisioning Time",
+          "metrics": [
+            {"name": "metrics/vm_manager/provisioning_time_ms", "service_name": "AZURE_VM_MANAGER", "component_name": "AZURE_VM_MANAGER_MASTER"}
+          ],
+          "values": [{"name": "Provisioning (ms)", "value": "${metrics/vm_manager/provisioning_time_ms}"}],
+          "properties": {"graph_type": "LINE", "time_range": "1"},
+          "widget_type": "GRAPH"
+        }
+      ]
+    }
+  ]
+}

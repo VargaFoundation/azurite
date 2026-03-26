@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Azure Cluster Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; color: #333; }
+    .header { background: #0078d4; color: white; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+    .header h1 { font-size: 20px; font-weight: 500; }
+    .container { max-width: 1200px; margin: 24px auto; padding: 0 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 24px; }
+    .card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px; }
+    .card h2 { font-size: 14px; text-transform: uppercase; color: #666; margin-bottom: 16px; letter-spacing: 0.5px; }
+    .metric { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .metric:last-child { border-bottom: none; }
+    .metric-label { color: #555; font-size: 14px; }
+    .metric-value { font-size: 18px; font-weight: 600; color: #0078d4; }
+    .metric-value.ok { color: #107c10; }
+    .metric-value.warn { color: #ff8c00; }
+    .metric-value.error { color: #d13438; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+    .badge.running { background: #dff6dd; color: #107c10; }
+    .badge.stopped { background: #fde7e9; color: #d13438; }
+    .badge.paused { background: #fff4ce; color: #797673; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; padding: 10px 8px; border-bottom: 2px solid #e0e0e0; color: #555; font-weight: 600; }
+    td { padding: 10px 8px; border-bottom: 1px solid #f0f0f0; }
+    .actions { display: flex; gap: 8px; margin-top: 16px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; }
+    .btn-primary { background: #0078d4; color: white; }
+    .btn-primary:hover { background: #106ebe; }
+    .btn-danger { background: #d13438; color: white; }
+    .btn-danger:hover { background: #a4262c; }
+    .btn-secondary { background: #e1e1e1; color: #333; }
+    .btn-secondary:hover { background: #d1d1d1; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .status-dot.green { background: #107c10; }
+    .status-dot.red { background: #d13438; }
+    .status-dot.yellow { background: #ff8c00; }
+    #error-banner { display: none; background: #fde7e9; color: #d13438; padding: 12px 24px; font-size: 14px; }
+    .loading { color: #999; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+    <h1>Azure Cluster Dashboard</h1>
+  </div>
+  <div id="error-banner"></div>
+
+  <div class="container">
+    <div class="grid">
+      <!-- Cluster Overview -->
+      <div class="card">
+        <h2>Cluster Overview</h2>
+        <div class="metric">
+          <span class="metric-label">Storage Backend</span>
+          <span class="metric-value" id="storage-backend">-</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">VM Manager</span>
+          <span id="vm-manager-status" class="badge">-</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Autoscaler</span>
+          <span id="autoscaler-status" class="badge">-</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Total VMs</span>
+          <span class="metric-value" id="total-vms">-</span>
+        </div>
+      </div>
+
+      <!-- Autoscaler Status -->
+      <div class="card">
+        <h2>Autoscaler</h2>
+        <div class="metric">
+          <span class="metric-label">Current Workers</span>
+          <span class="metric-value" id="current-workers">-</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Last Decision</span>
+          <span class="metric-value" id="last-decision">-</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Scale-Out Events</span>
+          <span class="metric-value" id="scale-out-events">-</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Scale-In Events</span>
+          <span class="metric-value" id="scale-in-events">-</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Avg CPU</span>
+          <span class="metric-value" id="avg-cpu">-</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Avg Memory</span>
+          <span class="metric-value" id="avg-mem">-</span>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="forceScaleOut()">Scale Out</button>
+          <button class="btn btn-danger" onclick="forceScaleIn()">Scale In</button>
+          <button class="btn btn-secondary" id="pause-btn" onclick="togglePause()">Pause</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VM Table -->
+    <div class="card">
+      <h2>Managed VMs</h2>
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Role</th><th>VM Size</th><th>Status</th><th>Created</th></tr>
+        </thead>
+        <tbody id="vm-table-body">
+          <tr><td colspan="5" class="loading">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    var vmManagerUrl = '';
+    var autoscalerUrl = '';
+    var isPaused = false;
+
+    function init() {
+      // Get view parameters from Ambari view context
+      try {
+        vmManagerUrl = window.VIEW_CONTEXT ? window.VIEW_CONTEXT.properties['vm.manager.url'] : 'http://localhost:8470';
+        autoscalerUrl = window.VIEW_CONTEXT ? window.VIEW_CONTEXT.properties['autoscaler.url'] : 'http://localhost:8471';
+        var backend = window.VIEW_CONTEXT ? window.VIEW_CONTEXT.properties['storage.backend'] : 'unknown';
+        document.getElementById('storage-backend').textContent = backend;
+      } catch(e) {
+        vmManagerUrl = 'http://localhost:8470';
+        autoscalerUrl = 'http://localhost:8471';
+      }
+      refresh();
+      setInterval(refresh, 30000);
+    }
+
+    function refresh() {
+      fetchVmStatus();
+      fetchAutoscalerStatus();
+    }
+
+    function fetchVmStatus() {
+      fetch(vmManagerUrl + '/api/v1/vms')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          document.getElementById('vm-manager-status').className = 'badge running';
+          document.getElementById('vm-manager-status').textContent = 'Running';
+          document.getElementById('total-vms').textContent = data.count || 0;
+          renderVmTable(data.vms || []);
+        })
+        .catch(function() {
+          document.getElementById('vm-manager-status').className = 'badge stopped';
+          document.getElementById('vm-manager-status').textContent = 'Unreachable';
+        });
+    }
+
+    function fetchAutoscalerStatus() {
+      fetch(autoscalerUrl + '/api/v1/status')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          isPaused = data.paused;
+          var badge = document.getElementById('autoscaler-status');
+          badge.className = 'badge ' + (data.paused ? 'paused' : 'running');
+          badge.textContent = data.paused ? 'Paused' : 'Running';
+          document.getElementById('current-workers').textContent = data.current_worker_count || 0;
+          document.getElementById('last-decision').textContent = data.last_decision || '-';
+          document.getElementById('scale-out-events').textContent = data.scale_out_events || 0;
+          document.getElementById('scale-in-events').textContent = data.scale_in_events || 0;
+          var metrics = data.last_metrics || {};
+          var cpu = metrics.avg_cpu_pct;
+          var mem = metrics.avg_memory_pct;
+          document.getElementById('avg-cpu').textContent = cpu != null ? cpu.toFixed(1) + '%' : '-';
+          document.getElementById('avg-mem').textContent = mem != null ? mem.toFixed(1) + '%' : '-';
+          document.getElementById('pause-btn').textContent = data.paused ? 'Resume' : 'Pause';
+        })
+        .catch(function() {
+          document.getElementById('autoscaler-status').className = 'badge stopped';
+          document.getElementById('autoscaler-status').textContent = 'Unreachable';
+        });
+    }
+
+    function renderVmTable(vms) {
+      var tbody = document.getElementById('vm-table-body');
+      tbody.innerHTML = '';
+      if (!vms.length) {
+        var row = document.createElement('tr');
+        var cell = document.createElement('td');
+        cell.colSpan = 5;
+        cell.style.color = '#999';
+        cell.textContent = 'No managed VMs';
+        row.appendChild(cell);
+        tbody.appendChild(row);
+        return;
+      }
+      vms.forEach(function(vm) {
+        var row = document.createElement('tr');
+        var fields = [vm.name, vm.role, vm.size || '-', vm.status, vm.created_at || '-'];
+        fields.forEach(function(val, i) {
+          var cell = document.createElement('td');
+          if (i === 3) {
+            var dot = document.createElement('span');
+            dot.className = 'status-dot ' + (val === 'running' ? 'green' : (val === 'stopped' ? 'red' : 'yellow'));
+            cell.appendChild(dot);
+          }
+          cell.appendChild(document.createTextNode(val));
+          row.appendChild(cell);
+        });
+        tbody.appendChild(row);
+      });
+    }
+
+    function forceScaleOut() {
+      fetch(autoscalerUrl + '/api/v1/scale/out', {method: 'POST'})
+        .then(function() { setTimeout(refresh, 2000); });
+    }
+
+    function forceScaleIn() {
+      if (confirm('Are you sure you want to scale in? This will remove worker nodes.')) {
+        fetch(autoscalerUrl + '/api/v1/scale/in', {method: 'POST'})
+          .then(function() { setTimeout(refresh, 2000); });
+      }
+    }
+
+    function togglePause() {
+      var endpoint = isPaused ? '/api/v1/resume' : '/api/v1/pause';
+      fetch(autoscalerUrl + endpoint, {method: 'POST'})
+        .then(function() { setTimeout(refresh, 1000); });
+    }
+
+    init();
+  </script>
+</body>
+</html>

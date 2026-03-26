@@ -1,0 +1,733 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "clusterName": {
+      "type": "string",
+      "defaultValue": "azurite",
+      "metadata": {
+        "description": "Base name for the Azurite Hadoop cluster resources."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "azureadmin",
+      "metadata": {
+        "description": "Admin username for all VMs."
+      }
+    },
+    "sshPublicKey": {
+      "type": "string",
+      "metadata": {
+        "description": "SSH public key for VM authentication."
+      }
+    },
+    "headNodeSize": {
+      "type": "string",
+      "defaultValue": "Standard_D4_v3",
+      "metadata": {
+        "description": "VM size for head nodes."
+      }
+    },
+    "workerNodeSize": {
+      "type": "string",
+      "defaultValue": "Standard_D4_v3",
+      "metadata": {
+        "description": "VM size for worker nodes."
+      }
+    },
+    "zkNodeSize": {
+      "type": "string",
+      "defaultValue": "Standard_A2_v2",
+      "metadata": {
+        "description": "VM size for ZooKeeper nodes."
+      }
+    },
+    "workerCount": {
+      "type": "int",
+      "defaultValue": 3,
+      "minValue": 1,
+      "maxValue": 50,
+      "metadata": {
+        "description": "Number of worker nodes to deploy."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for all resources."
+      }
+    },
+    "ambariVersion": {
+      "type": "string",
+      "defaultValue": "2.7.5.0",
+      "metadata": {
+        "description": "Ambari version to install."
+      }
+    },
+    "mpackUrl": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "URL to download the mpack tar.gz. Leave empty to skip mpack installation."
+      }
+    }
+  },
+  "variables": {
+    "vnetName": "[concat(parameters('clusterName'), '-vnet')]",
+    "subnetName": "[concat(parameters('clusterName'), '-subnet')]",
+    "nsgName": "[concat(parameters('clusterName'), '-nsg')]",
+    "storageAccountName": "[concat(replace(parameters('clusterName'), '-', ''), 'adls', uniqueString(resourceGroup().id))]",
+    "managedIdentityName": "[concat(parameters('clusterName'), '-identity')]",
+    "vnetAddressPrefix": "10.0.0.0/16",
+    "subnetAddressPrefix": "10.0.1.0/24",
+    "storageBlobDataContributorRoleId": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+    "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]",
+    "cloudInitHeadServer": "[concat('#cloud-config\npackage_update: true\npackage_upgrade: false\npackages:\n  - curl\n  - wget\n  - apt-transport-https\nruncmd:\n  # ---- Install Java 8 ----\n  - apt-get install -y openjdk-8-jdk\n  - export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64\n  - echo \"JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64\" >> /etc/environment\n  # ---- Install PostgreSQL and create ambari database ----\n  - apt-get install -y postgresql postgresql-contrib\n  - systemctl enable postgresql\n  - systemctl start postgresql\n  - sudo -u postgres psql -c \"CREATE DATABASE ambari;\"\n  - sudo -u postgres psql -c \"CREATE USER ambari WITH PASSWORD ''ambari'';\"\n  - sudo -u postgres psql -c \"GRANT ALL PRIVILEGES ON DATABASE ambari TO ambari;\"\n  - sed -i ''s/^local\\s\\+all\\s\\+all\\s\\+peer/local all all md5/'' /etc/postgresql/*/main/pg_hba.conf\n  - systemctl restart postgresql\n  # ---- Install Ambari server and agent ----\n  - wget -nv https://public-repo-1.hortonworks.com/ambari/ubuntu18/2.x/updates/', parameters('ambariVersion'), '/ambari.list -O /etc/apt/sources.list.d/ambari.list\n  - apt-key adv --recv-keys --keyserver keyserver.ubuntu.com B9733A7A07513CAD\n  - apt-get update\n  - apt-get install -y ambari-server ambari-agent\n  # ---- Setup Ambari server with PostgreSQL ----\n  - ambari-server setup --jdbc-db=postgres --jdbc-driver=/usr/share/java/postgresql.jar -s\n  - ambari-server setup -s --java-home=/usr/lib/jvm/java-8-openjdk-amd64 --database=postgres --databasehost=localhost --databaseport=5432 --databasename=ambari --databaseusername=ambari --databasepassword=ambari\n  # ---- Install mpack if URL provided ----\n', if(empty(parameters('mpackUrl')), '  - echo \"No mpack URL provided, skipping mpack installation.\"\n', concat('  - wget -nv \"', parameters('mpackUrl'), '\" -O /tmp/azurite-mpack.tar.gz\n  - ambari-server install-mpack --mpack=/tmp/azurite-mpack.tar.gz --verbose\n')), '  # ---- Start services ----\n  - ambari-server start\n  - sed -i \"s/hostname=localhost/hostname=', parameters('clusterName'), '-head-0/\" /etc/ambari-agent/conf/ambari-agent.ini\n  - ambari-agent start\n')]",
+    "cloudInitAgent": "[concat('#cloud-config\npackage_update: true\npackage_upgrade: false\npackages:\n  - curl\n  - wget\n  - apt-transport-https\nruncmd:\n  # ---- Install Java 8 ----\n  - apt-get install -y openjdk-8-jdk\n  - export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64\n  - echo \"JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64\" >> /etc/environment\n  # ---- Install Ambari agent ----\n  - wget -nv https://public-repo-1.hortonworks.com/ambari/ubuntu18/2.x/updates/', parameters('ambariVersion'), '/ambari.list -O /etc/apt/sources.list.d/ambari.list\n  - apt-key adv --recv-keys --keyserver keyserver.ubuntu.com B9733A7A07513CAD\n  - apt-get update\n  - apt-get install -y ambari-agent\n  # ---- Configure agent to point to head-0 ----\n  - sed -i \"s/hostname=localhost/hostname=', parameters('clusterName'), '-head-0/\" /etc/ambari-agent/conf/ambari-agent.ini\n  # ---- Start agent ----\n  - ambari-agent start\n')]",
+    "vmTags": {
+      "managed-by": "ambari-azure-mpack",
+      "cluster": "[parameters('clusterName')]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('nsgName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "Allow-SSH",
+            "properties": {
+              "priority": 1000,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "22",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "Allow-Ambari-HTTP",
+            "properties": {
+              "priority": 1010,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "8080",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "Allow-Ambari-HTTPS",
+            "properties": {
+              "priority": 1020,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "8443",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "Allow-HDFS-NameNode",
+            "properties": {
+              "priority": 1030,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "8020",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "Allow-HDFS-WebUI",
+            "properties": {
+              "priority": 1040,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "50070",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "Allow-YARN-ResourceManager",
+            "properties": {
+              "priority": 1050,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "8088",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "Allow-ZooKeeper",
+            "properties": {
+              "priority": 1060,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "2181",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "Allow-VM-Manager",
+            "properties": {
+              "priority": 1070,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "8470",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "Allow-Autoscaler",
+            "properties": {
+              "priority": 1080,
+              "direction": "Inbound",
+              "access": "Allow",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "8471",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "*"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('vnetName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('vnetAddressPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('subnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('subnetAddressPrefix')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-01-01",
+      "name": "[variables('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "isHnsEnabled": true,
+        "accessTier": "Hot",
+        "supportsHttpsTrafficOnly": true,
+        "minimumTlsVersion": "TLS1_2"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-01-01",
+      "name": "[concat(variables('storageAccountName'), '/default/hadoop')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "publicAccess": "None"
+      }
+    },
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[variables('managedIdentityName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]"
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceGroup().id, variables('managedIdentityName'), variables('storageBlobDataContributorRoleId'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "scope": "[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('storageBlobDataContributorRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))).principalId]",
+        "principalType": "ServicePrincipal"
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(parameters('clusterName'), '-head-', copyIndex(), '-pip')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[concat(parameters('clusterName'), '-head-', copyIndex())]"
+        }
+      },
+      "copy": {
+        "name": "headPipCopy",
+        "count": 2
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(parameters('clusterName'), '-head-', copyIndex(), '-nic')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+        "headPipCopy"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetRef')]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-head-', copyIndex(), '-pip'))]"
+              }
+            }
+          }
+        ]
+      },
+      "copy": {
+        "name": "headNicCopy",
+        "count": 2
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-07-01",
+      "name": "[concat(parameters('clusterName'), '-head-0')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-head-0-nic'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]"
+      ],
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]": {}
+        }
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('headNodeSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat(parameters('clusterName'), '-head-0')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "linuxConfiguration": {
+            "disablePasswordAuthentication": true,
+            "ssh": {
+              "publicKeys": [
+                {
+                  "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]",
+                  "keyData": "[parameters('sshPublicKey')]"
+                }
+              ]
+            }
+          },
+          "customData": "[base64(variables('cloudInitHeadServer'))]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "Canonical",
+            "offer": "UbuntuServer",
+            "sku": "18.04-LTS",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            },
+            "diskSizeGB": 128
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-head-0-nic'))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-07-01",
+      "name": "[concat(parameters('clusterName'), '-head-1')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-head-1-nic'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]"
+      ],
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]": {}
+        }
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('headNodeSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat(parameters('clusterName'), '-head-1')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "linuxConfiguration": {
+            "disablePasswordAuthentication": true,
+            "ssh": {
+              "publicKeys": [
+                {
+                  "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]",
+                  "keyData": "[parameters('sshPublicKey')]"
+                }
+              ]
+            }
+          },
+          "customData": "[base64(variables('cloudInitAgent'))]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "Canonical",
+            "offer": "UbuntuServer",
+            "sku": "18.04-LTS",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            },
+            "diskSizeGB": 128
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-head-1-nic'))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(parameters('clusterName'), '-zk-', copyIndex(), '-pip')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[concat(parameters('clusterName'), '-zk-', copyIndex())]"
+        }
+      },
+      "copy": {
+        "name": "zkPipCopy",
+        "count": 3
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(parameters('clusterName'), '-zk-', copyIndex(), '-nic')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+        "zkPipCopy"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetRef')]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-zk-', copyIndex(), '-pip'))]"
+              }
+            }
+          }
+        ]
+      },
+      "copy": {
+        "name": "zkNicCopy",
+        "count": 3
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-07-01",
+      "name": "[concat(parameters('clusterName'), '-zk-', copyIndex())]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "dependsOn": [
+        "zkNicCopy",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]"
+      ],
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]": {}
+        }
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('zkNodeSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat(parameters('clusterName'), '-zk-', copyIndex())]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "linuxConfiguration": {
+            "disablePasswordAuthentication": true,
+            "ssh": {
+              "publicKeys": [
+                {
+                  "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]",
+                  "keyData": "[parameters('sshPublicKey')]"
+                }
+              ]
+            }
+          },
+          "customData": "[base64(variables('cloudInitAgent'))]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "Canonical",
+            "offer": "UbuntuServer",
+            "sku": "18.04-LTS",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            },
+            "diskSizeGB": 64
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-zk-', copyIndex(), '-nic'))]"
+            }
+          ]
+        }
+      },
+      "copy": {
+        "name": "zkVmCopy",
+        "count": 3
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(parameters('clusterName'), '-worker-', copyIndex(), '-pip')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[concat(parameters('clusterName'), '-worker-', copyIndex())]"
+        }
+      },
+      "copy": {
+        "name": "workerPipCopy",
+        "count": "[parameters('workerCount')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-05-01",
+      "name": "[concat(parameters('clusterName'), '-worker-', copyIndex(), '-nic')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+        "workerPipCopy"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetRef')]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-worker-', copyIndex(), '-pip'))]"
+              }
+            }
+          }
+        ]
+      },
+      "copy": {
+        "name": "workerNicCopy",
+        "count": "[parameters('workerCount')]"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-07-01",
+      "name": "[concat(parameters('clusterName'), '-worker-', copyIndex())]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('vmTags')]",
+      "dependsOn": [
+        "workerNicCopy",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]"
+      ],
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]": {}
+        }
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('workerNodeSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat(parameters('clusterName'), '-worker-', copyIndex())]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "linuxConfiguration": {
+            "disablePasswordAuthentication": true,
+            "ssh": {
+              "publicKeys": [
+                {
+                  "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]",
+                  "keyData": "[parameters('sshPublicKey')]"
+                }
+              ]
+            }
+          },
+          "customData": "[base64(variables('cloudInitAgent'))]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "Canonical",
+            "offer": "UbuntuServer",
+            "sku": "18.04-LTS",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            },
+            "diskSizeGB": 128
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-worker-', copyIndex(), '-nic'))]"
+            }
+          ]
+        }
+      },
+      "copy": {
+        "name": "workerVmCopy",
+        "count": "[parameters('workerCount')]"
+      }
+    }
+  ],
+  "outputs": {
+    "ambariUrl": {
+      "type": "string",
+      "value": "[concat('http://', reference(resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-head-0-pip'))).dnsSettings.fqdn, ':8080')]"
+    },
+    "headNode0Fqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-head-0-pip'))).dnsSettings.fqdn]"
+    },
+    "headNode0PublicIp": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-head-0-pip'))).ipAddress]"
+    },
+    "sshCommand": {
+      "type": "string",
+      "value": "[concat('ssh ', parameters('adminUsername'), '@', reference(resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-head-0-pip'))).dnsSettings.fqdn)]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[variables('storageAccountName')]"
+    },
+    "storageAccountDfs": {
+      "type": "string",
+      "value": "[concat('abfss://hadoop@', variables('storageAccountName'), '.dfs.core.windows.net')]"
+    },
+    "managedIdentityClientId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))).clientId]"
+    }
+  }
+}

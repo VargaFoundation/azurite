@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+<metainfo>
+  <schemaVersion>2.0</schemaVersion>
+  <services>
+    <service>
+      <name>AZURE_AUTOSCALER</name>
+      <displayName>Azure Autoscaler</displayName>
+      <comment>Autoscaling daemon for Azure Hadoop clusters. Monitors YARN and system metrics to automatically scale worker nodes up and down.</comment>
+      <version>1.0.0</version>
+
+      <components>
+        <component>
+          <name>AZURE_AUTOSCALER_MASTER</name>
+          <displayName>Azure Autoscaler</displayName>
+          <category>MASTER</category>
+          <cardinality>1</cardinality>
+          <versionAdvertised>false</versionAdvertised>
+          <dependencies>
+            <dependency>
+              <name>AZURE_VM_MANAGER/AZURE_VM_MANAGER_MASTER</name>
+              <scope>cluster</scope>
+              <auto-deploy>
+                <enabled>true</enabled>
+              </auto-deploy>
+            </dependency>
+            <dependency>
+              <name>YARN/RESOURCEMANAGER</name>
+              <scope>cluster</scope>
+              <auto-deploy>
+                <enabled>false</enabled>
+              </auto-deploy>
+            </dependency>
+          </dependencies>
+          <commandScript>
+            <script>scripts/azure_autoscaler_master.py</script>
+            <scriptType>PYTHON</scriptType>
+            <timeout>5000</timeout>
+          </commandScript>
+          <customCommands>
+            <customCommand>
+              <name>FORCE_SCALE_OUT</name>
+              <commandScript>
+                <script>scripts/azure_autoscaler_master.py</script>
+                <scriptType>PYTHON</scriptType>
+                <timeout>600</timeout>
+              </commandScript>
+            </customCommand>
+            <customCommand>
+              <name>FORCE_SCALE_IN</name>
+              <commandScript>
+                <script>scripts/azure_autoscaler_master.py</script>
+                <scriptType>PYTHON</scriptType>
+                <timeout>600</timeout>
+              </commandScript>
+            </customCommand>
+            <customCommand>
+              <name>PAUSE_AUTOSCALING</name>
+              <commandScript>
+                <script>scripts/azure_autoscaler_master.py</script>
+                <scriptType>PYTHON</scriptType>
+                <timeout>60</timeout>
+              </commandScript>
+            </customCommand>
+            <customCommand>
+              <name>RESUME_AUTOSCALING</name>
+              <commandScript>
+                <script>scripts/azure_autoscaler_master.py</script>
+                <scriptType>PYTHON</scriptType>
+                <timeout>60</timeout>
+              </commandScript>
+            </customCommand>
+          </customCommands>
+        </component>
+      </components>
+
+      <osSpecifics>
+        <osSpecific>
+          <osFamily>any</osFamily>
+        </osSpecific>
+      </osSpecifics>
+
+      <requiredServices>
+        <service>AZURE_VM_MANAGER</service>
+        <service>YARN</service>
+      </requiredServices>
+
+      <configuration-dependencies>
+        <config-type>azure-autoscaler-env</config-type>
+        <config-type>azure-autoscaler-site</config-type>
+        <config-type>azure-autoscaler-schedule-site</config-type>
+      </configuration-dependencies>
+
+      <restartRequiredAfterChange>true</restartRequiredAfterChange>
+
+      <themes>
+        <theme>
+          <fileName>theme.json</fileName>
+          <default>true</default>
+        </theme>
+      </themes>
+    </service>
+  </services>
+</metainfo>

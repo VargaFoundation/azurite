@@ -1,0 +1,175 @@
+{
+  "name": "default",
+  "description": "Default theme for Azure Hadoop Cloud service",
+  "configuration": {
+    "layouts": [
+      {
+        "name": "default",
+        "tabs": [
+          {
+            "name": "settings",
+            "display-name": "Settings",
+            "layout": {
+              "tab-columns": "2",
+              "tab-rows": "3",
+              "sections": [
+                {
+                  "name": "section-storage-backend",
+                  "display-name": "Storage Backend",
+                  "row-index": "0",
+                  "column-index": "0",
+                  "row-span": "1",
+                  "column-span": "1",
+                  "section-columns": "1",
+                  "section-rows": "3",
+                  "subsections": [
+                    {
+                      "name": "subsection-storage-backend",
+                      "row-index": "0",
+                      "column-index": "0",
+                      "row-span": "3",
+                      "column-span": "1"
+                    }
+                  ]
+                },
+                {
+                  "name": "section-storage-account",
+                  "display-name": "Storage Account",
+                  "row-index": "0",
+                  "column-index": "1",
+                  "row-span": "1",
+                  "column-span": "1",
+                  "section-columns": "1",
+                  "section-rows": "3",
+                  "subsections": [
+                    {
+                      "name": "subsection-storage-account",
+                      "row-index": "0",
+                      "column-index": "0",
+                      "row-span": "3",
+                      "column-span": "1"
+                    }
+                  ]
+                },
+                {
+                  "name": "section-authentication",
+                  "display-name": "Authentication",
+                  "row-index": "1",
+                  "column-index": "0",
+                  "row-span": "1",
+                  "column-span": "2",
+                  "section-columns": "2",
+                  "section-rows": "3",
+                  "subsections": [
+                    {
+                      "name": "subsection-authentication",
+                      "row-index": "0",
+                      "column-index": "0",
+                      "row-span": "3",
+                      "column-span": "2"
+                    }
+                  ]
+                },
+                {
+                  "name": "section-azure-env",
+                  "display-name": "Azure Environment",
+                  "row-index": "2",
+                  "column-index": "0",
+                  "row-span": "1",
+                  "column-span": "2",
+                  "section-columns": "2",
+                  "section-rows": "2",
+                  "subsections": [
+                    {
+                      "name": "subsection-azure-env",
+                      "row-index": "0",
+                      "column-index": "0",
+                      "row-span": "2",
+                      "column-span": "2"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "placement": {
+      "configs": [
+        {
+          "config": "azure-cloud-env/azure_storage_backend",
+          "subsection-name": "subsection-storage-backend"
+        },
+        {
+          "config": "azure-storage-site/azure.storage.account.name",
+          "subsection-name": "subsection-storage-account"
+        },
+        {
+          "config": "azure-storage-site/azure.storage.container.name",
+          "subsection-name": "subsection-storage-account"
+        },
+        {
+          "config": "azure-storage-site/azure.storage.auth.type",
+          "subsection-name": "subsection-authentication"
+        },
+        {
+          "config": "azure-storage-site/azure.storage.account.key",
+          "subsection-name": "subsection-authentication"
+        },
+        {
+          "config": "azure-storage-site/azure.managed.identity.client.id",
+          "subsection-name": "subsection-authentication"
+        },
+        {
+          "config": "azure-storage-site/azure.managed.identity.tenant.id",
+          "subsection-name": "subsection-authentication"
+        },
+        {
+          "config": "azure-storage-site/azure.oauth2.client.id",
+          "subsection-name": "subsection-authentication"
+        },
+        {
+          "config": "azure-storage-site/azure.oauth2.client.secret",
+          "subsection-name": "subsection-authentication"
+        },
+        {
+          "config": "azure-storage-site/azure.oauth2.client.endpoint",
+          "subsection-name": "subsection-authentication"
+        },
+        {
+          "config": "azure-cloud-env/azure_subscription_id",
+          "subsection-name": "subsection-azure-env"
+        },
+        {
+          "config": "azure-cloud-env/azure_resource_group",
+          "subsection-name": "subsection-azure-env"
+        },
+        {
+          "config": "azure-cloud-env/azure_region",
+          "subsection-name": "subsection-azure-env"
+        }
+      ]
+    },
+    "widgets": [
+      {
+        "config": "azure-cloud-env/azure_storage_backend",
+        "widget": {
+          "type": "combo"
+        }
+      },
+      {
+        "config": "azure-storage-site/azure.storage.auth.type",
+        "widget": {
+          "type": "combo"
+        }
+      },
+      {
+        "config": "azure-cloud-env/azure_region",
+        "widget": {
+          "type": "combo"
+        }
+      }
+    ]
+  }
+}

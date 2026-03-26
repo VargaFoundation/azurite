@@ -1,0 +1,134 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration supports_adding_forbidden="false">
+
+  <property>
+    <name>azure.vm.vnet.name</name>
+    <value></value>
+    <display-name>Virtual Network Name</display-name>
+    <description>Azure Virtual Network for cluster VMs.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-vm-manager-env</type>
+        <name>vm_manager_mode</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.vnet.resource.group</name>
+    <value></value>
+    <display-name>VNet Resource Group</display-name>
+    <description>Resource group of the VNet (if different from cluster resource group).</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.subnet.name</name>
+    <value>default</value>
+    <display-name>Subnet Name</display-name>
+    <description>Subnet within the VNet for cluster VMs.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.nsg.name</name>
+    <value></value>
+    <display-name>Network Security Group</display-name>
+    <description>NSG to associate with cluster VM NICs.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.ssh.public.key</name>
+    <value></value>
+    <display-name>SSH Public Key</display-name>
+    <description>SSH public key for VM admin access.</description>
+    <value-attributes>
+      <type>multiLine</type>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.admin.username</name>
+    <value>azureadmin</value>
+    <display-name>VM Admin Username</display-name>
+    <description>Admin username for provisioned VMs.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.image.publisher</name>
+    <value>Canonical</value>
+    <display-name>VM Image Publisher</display-name>
+    <description>Marketplace image publisher.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.image.offer</name>
+    <value>0001-com-ubuntu-server-focal</value>
+    <display-name>VM Image Offer</display-name>
+    <description>Marketplace image offer.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.image.sku</name>
+    <value>20_04-lts-gen2</value>
+    <display-name>VM Image SKU</display-name>
+    <description>Marketplace image SKU.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.image.version</name>
+    <value>latest</value>
+    <display-name>VM Image Version</display-name>
+    <description>Marketplace image version.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.ambari.server.url</name>
+    <value></value>
+    <display-name>Ambari Server URL</display-name>
+    <description>Ambari server URL for agent registration on new VMs (e.g., https://ambari.internal:8443).</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.tags</name>
+    <value>{"managed-by": "ambari-azure-mpack"}</value>
+    <display-name>VM Tags</display-name>
+    <description>JSON tags applied to all managed VMs.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.availability.zone</name>
+    <value></value>
+    <display-name>Availability Zone</display-name>
+    <description>Azure Availability Zone for VM placement (e.g., 1, 2, 3). Leave empty for no zone pinning.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+</configuration>

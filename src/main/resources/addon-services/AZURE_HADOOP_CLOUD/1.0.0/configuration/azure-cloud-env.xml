@@ -1,0 +1,124 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration supports_adding_forbidden="true">
+
+  <property>
+    <name>azure_cloud_user</name>
+    <value>azurehdp</value>
+    <display-name>Azure Cloud User</display-name>
+    <description>User to run Azure Hadoop Cloud service as.</description>
+    <property-type>USER</property-type>
+    <value-attributes>
+      <type>user</type>
+      <overridable>false</overridable>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure_cloud_group</name>
+    <value>hadoop</value>
+    <display-name>Azure Cloud Group</display-name>
+    <description>Group for Azure Hadoop Cloud service.</description>
+    <property-type>GROUP</property-type>
+    <value-attributes>
+      <type>user</type>
+      <overridable>false</overridable>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure_cloud_log_dir</name>
+    <value>/var/log/azure-hadoop-cloud</value>
+    <display-name>Log Directory</display-name>
+    <description>Log directory for Azure Hadoop Cloud service.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure_cloud_pid_dir</name>
+    <value>/var/run/azure-hadoop-cloud</value>
+    <display-name>PID Directory</display-name>
+    <description>PID directory for Azure Hadoop Cloud service.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure_storage_backend</name>
+    <value>adls_gen2</value>
+    <display-name>Storage Backend</display-name>
+    <description>Primary storage backend for the Hadoop cluster.</description>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry>
+          <value>adls_gen2</value>
+          <label>Azure Data Lake Storage Gen2</label>
+        </entry>
+        <entry>
+          <value>wasb</value>
+          <label>Azure Blob Storage (WASB)</label>
+        </entry>
+        <entry>
+          <value>hdfs</value>
+          <label>HDFS (Local)</label>
+        </entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure_subscription_id</name>
+    <value></value>
+    <display-name>Azure Subscription ID</display-name>
+    <description>Azure subscription ID for resource management.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure_resource_group</name>
+    <value></value>
+    <display-name>Azure Resource Group</display-name>
+    <description>Azure resource group containing the cluster resources.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure_region</name>
+    <value>eastus</value>
+    <display-name>Azure Region</display-name>
+    <description>Azure region for cluster resources.</description>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry><value>eastus</value><label>East US</label></entry>
+        <entry><value>eastus2</value><label>East US 2</label></entry>
+        <entry><value>westus</value><label>West US</label></entry>
+        <entry><value>westus2</value><label>West US 2</label></entry>
+        <entry><value>westus3</value><label>West US 3</label></entry>
+        <entry><value>centralus</value><label>Central US</label></entry>
+        <entry><value>northeurope</value><label>North Europe</label></entry>
+        <entry><value>westeurope</value><label>West Europe</label></entry>
+        <entry><value>francecentral</value><label>France Central</label></entry>
+        <entry><value>uksouth</value><label>UK South</label></entry>
+        <entry><value>southeastasia</value><label>Southeast Asia</label></entry>
+        <entry><value>eastasia</value><label>East Asia</label></entry>
+        <entry><value>japaneast</value><label>Japan East</label></entry>
+        <entry><value>australiaeast</value><label>Australia East</label></entry>
+        <entry><value>canadacentral</value><label>Canada Central</label></entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+</configuration>

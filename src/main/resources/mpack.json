@@ -1,0 +1,50 @@
+{
+  "type": "full-release",
+  "name": "azure-hadoop-cloud-mpack",
+  "version": "${mpack.version}",
+  "description": "Azure Hadoop Cloud Management Pack - Azure storage integration (ADLS Gen2/WASB/HDFS), VM lifecycle management, and autoscaling for Hadoop clusters on Azure",
+  "prerequisites": {
+    "min_ambari_version": "2.7.0.0"
+  },
+  "artifacts": [
+    {
+      "name": "azure-hadoop-cloud-addon-services",
+      "type": "stack-addon-service-definitions",
+      "source_dir": "addon-services",
+      "service_versions_map": [
+        {
+          "service_name": "AZURE_HADOOP_CLOUD",
+          "service_version": "1.0.0",
+          "applicable_stacks": [
+            {"stack_name": "HDP", "stack_version": "2.6"},
+            {"stack_name": "HDP", "stack_version": "3.0"},
+            {"stack_name": "HDP", "stack_version": "3.1"}
+          ]
+        },
+        {
+          "service_name": "AZURE_VM_MANAGER",
+          "service_version": "1.0.0",
+          "applicable_stacks": [
+            {"stack_name": "HDP", "stack_version": "2.6"},
+            {"stack_name": "HDP", "stack_version": "3.0"},
+            {"stack_name": "HDP", "stack_version": "3.1"}
+          ]
+        },
+        {
+          "service_name": "AZURE_AUTOSCALER",
+          "service_version": "1.0.0",
+          "applicable_stacks": [
+            {"stack_name": "HDP", "stack_version": "2.6"},
+            {"stack_name": "HDP", "stack_version": "3.0"},
+            {"stack_name": "HDP", "stack_version": "3.1"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "azure-cluster-view-definitions",
+      "type": "view-definition",
+      "source_dir": "views"
+    }
+  ]
+}

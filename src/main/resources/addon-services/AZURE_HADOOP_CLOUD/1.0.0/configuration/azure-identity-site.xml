@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration supports_adding_forbidden="false">
+
+  <property>
+    <name>azure.identity.provider</name>
+    <value>managed_identity</value>
+    <display-name>Identity Provider</display-name>
+    <description>Azure identity provider for ARM API authentication (used by VM Manager and Autoscaler).</description>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry>
+          <value>managed_identity</value>
+          <label>Managed Identity</label>
+        </entry>
+        <entry>
+          <value>service_principal</value>
+          <label>Service Principal</label>
+        </entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.identity.tenant.id</name>
+    <value></value>
+    <display-name>Tenant ID</display-name>
+    <description>Microsoft Entra (Azure AD) tenant ID.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.identity.client.id</name>
+    <value></value>
+    <display-name>Client ID</display-name>
+    <description>Application (client) ID for the service principal or managed identity.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.identity.client.secret</name>
+    <value></value>
+    <display-name>Client Secret</display-name>
+    <description>Client secret for service principal authentication.</description>
+    <property-type>PASSWORD</property-type>
+    <value-attributes>
+      <type>password</type>
+      <empty-value-valid>true</empty-value-valid>
+      <keystore>true</keystore>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-identity-site</type>
+        <name>azure.identity.provider</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.identity.managed.identity.resource.id</name>
+    <value></value>
+    <display-name>Managed Identity Resource ID</display-name>
+    <description>Full Azure resource ID of the user-assigned managed identity.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-identity-site</type>
+        <name>azure.identity.provider</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+</configuration>

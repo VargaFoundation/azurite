@@ -1,0 +1,260 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration supports_adding_forbidden="false">
+
+  <!-- Head Nodes -->
+  <property>
+    <name>azure.vm.pool.head.size</name>
+    <value>Standard_D4_v3</value>
+    <display-name>Head Node VM Size</display-name>
+    <description>Azure VM size for head (master) nodes.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.head.count</name>
+    <value>2</value>
+    <display-name>Head Node Count</display-name>
+    <description>Number of head nodes (active/standby for HA).</description>
+    <value-attributes>
+      <type>int</type>
+      <minimum>1</minimum>
+      <maximum>2</maximum>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.head.disk.type</name>
+    <value>Premium_LRS</value>
+    <display-name>Head Node Disk Type</display-name>
+    <description>Managed disk type for head node OS disk.</description>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry><value>Premium_LRS</value><label>Premium SSD</label></entry>
+        <entry><value>StandardSSD_LRS</value><label>Standard SSD</label></entry>
+        <entry><value>Standard_LRS</value><label>Standard HDD</label></entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.head.disk.size.gb</name>
+    <value>128</value>
+    <display-name>Head Node OS Disk Size (GB)</display-name>
+    <value-attributes>
+      <type>int</type>
+      <minimum>64</minimum>
+      <maximum>4096</maximum>
+      <unit>GB</unit>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.head.data.disks</name>
+    <value>2</value>
+    <display-name>Head Node Data Disk Count</display-name>
+    <value-attributes>
+      <type>int</type>
+      <minimum>0</minimum>
+      <maximum>32</maximum>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.head.data.disk.size.gb</name>
+    <value>256</value>
+    <display-name>Head Node Data Disk Size (GB)</display-name>
+    <value-attributes>
+      <type>int</type>
+      <minimum>32</minimum>
+      <maximum>4096</maximum>
+      <unit>GB</unit>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <!-- Worker Nodes -->
+  <property>
+    <name>azure.vm.pool.worker.size</name>
+    <value>Standard_D4_v3</value>
+    <display-name>Worker Node VM Size</display-name>
+    <description>Primary Azure VM size for worker nodes.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.min.count</name>
+    <value>1</value>
+    <display-name>Worker Minimum Count</display-name>
+    <description>Minimum number of worker nodes (autoscaler floor).</description>
+    <value-attributes>
+      <type>int</type>
+      <minimum>0</minimum>
+      <maximum>500</maximum>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.max.count</name>
+    <value>20</value>
+    <display-name>Worker Maximum Count</display-name>
+    <description>Maximum number of worker nodes (autoscaler ceiling).</description>
+    <value-attributes>
+      <type>int</type>
+      <minimum>1</minimum>
+      <maximum>500</maximum>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.initial.count</name>
+    <value>3</value>
+    <display-name>Worker Initial Count</display-name>
+    <description>Number of worker nodes to provision at cluster start.</description>
+    <value-attributes>
+      <type>int</type>
+      <minimum>0</minimum>
+      <maximum>500</maximum>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.disk.type</name>
+    <value>Standard_LRS</value>
+    <display-name>Worker Node Disk Type</display-name>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry><value>Premium_LRS</value><label>Premium SSD</label></entry>
+        <entry><value>StandardSSD_LRS</value><label>Standard SSD</label></entry>
+        <entry><value>Standard_LRS</value><label>Standard HDD</label></entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.disk.size.gb</name>
+    <value>128</value>
+    <display-name>Worker Node OS Disk Size (GB)</display-name>
+    <value-attributes>
+      <type>int</type>
+      <minimum>64</minimum>
+      <maximum>4096</maximum>
+      <unit>GB</unit>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.data.disks</name>
+    <value>4</value>
+    <display-name>Worker Node Data Disk Count</display-name>
+    <value-attributes>
+      <type>int</type>
+      <minimum>0</minimum>
+      <maximum>32</maximum>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.data.disk.size.gb</name>
+    <value>512</value>
+    <display-name>Worker Node Data Disk Size (GB)</display-name>
+    <value-attributes>
+      <type>int</type>
+      <minimum>32</minimum>
+      <maximum>4096</maximum>
+      <unit>GB</unit>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.type</name>
+    <value>core</value>
+    <display-name>Worker Node Type</display-name>
+    <description>Worker role: 'core' runs HDFS+compute, 'task' runs compute only (faster to scale).</description>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry><value>core</value><label>Core (HDFS + Compute)</label></entry>
+        <entry><value>task</value><label>Task (Compute Only)</label></entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.secondary.sizes</name>
+    <value></value>
+    <display-name>Worker Fallback VM Sizes</display-name>
+    <description>Comma-separated list of fallback VM sizes if primary is unavailable (fleet model).</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.spot.enabled</name>
+    <value>false</value>
+    <display-name>Use Spot VMs for Workers</display-name>
+    <description>Use Azure Spot VMs for task worker nodes (lower cost, may be evicted).</description>
+    <value-attributes>
+      <type>boolean</type>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.spot.max.price</name>
+    <value>-1</value>
+    <display-name>Spot VM Max Price</display-name>
+    <description>Maximum price for Spot VMs (-1 = up to on-demand price).</description>
+    <value-attributes>
+      <type>float</type>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-vm-pool-site</type>
+        <name>azure.vm.pool.worker.spot.enabled</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <!-- ZooKeeper Nodes -->
+  <property>
+    <name>azure.vm.pool.zk.size</name>
+    <value>Standard_A2_v2</value>
+    <display-name>ZooKeeper Node VM Size</display-name>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.zk.count</name>
+    <value>3</value>
+    <display-name>ZooKeeper Node Count</display-name>
+    <description>Number of ZooKeeper nodes (must be odd: 3 or 5).</description>
+    <value-attributes>
+      <type>int</type>
+      <minimum>3</minimum>
+      <maximum>7</maximum>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+</configuration>

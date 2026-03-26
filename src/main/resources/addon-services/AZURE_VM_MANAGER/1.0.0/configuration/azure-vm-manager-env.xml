@@ -1,0 +1,122 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration supports_adding_forbidden="true">
+
+  <property>
+    <name>vm_manager_user</name>
+    <value>azurevmgr</value>
+    <display-name>VM Manager User</display-name>
+    <description>User to run Azure VM Manager service as.</description>
+    <property-type>USER</property-type>
+    <value-attributes>
+      <type>user</type>
+      <overridable>false</overridable>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>vm_manager_group</name>
+    <value>hadoop</value>
+    <display-name>VM Manager Group</display-name>
+    <description>Group for Azure VM Manager service.</description>
+    <property-type>GROUP</property-type>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>vm_manager_log_dir</name>
+    <value>/var/log/azure-vm-manager</value>
+    <display-name>Log Directory</display-name>
+    <description>Log directory for Azure VM Manager.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>vm_manager_pid_dir</name>
+    <value>/var/run/azure-vm-manager</value>
+    <display-name>PID Directory</display-name>
+    <description>PID directory for Azure VM Manager.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>vm_manager_data_dir</name>
+    <value>/var/lib/azure-vm-manager</value>
+    <display-name>Data Directory</display-name>
+    <description>State directory for VM inventory and operation logs.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>vm_manager_port</name>
+    <value>8470</value>
+    <display-name>REST API Port</display-name>
+    <description>Port for the VM Manager REST API daemon.</description>
+    <value-attributes>
+      <type>int</type>
+      <minimum>1024</minimum>
+      <maximum>65535</maximum>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>vm_manager_mode</name>
+    <value>managed</value>
+    <display-name>VM Management Mode</display-name>
+    <description>Mode of operation: 'managed' creates and deletes VMs, 'existing' uses pre-provisioned VMs.</description>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry>
+          <value>managed</value>
+          <label>Managed (Create/Delete VMs)</label>
+        </entry>
+        <entry>
+          <value>existing</value>
+          <label>Existing VMs (No Provisioning)</label>
+        </entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>vm_manager_tls_enabled</name>
+    <value>false</value>
+    <display-name>TLS Enabled</display-name>
+    <description>Enable TLS/HTTPS for the VM Manager REST API.</description>
+    <value-attributes><type>boolean</type></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>vm_manager_tls_cert_path</name>
+    <value></value>
+    <display-name>TLS Certificate Path</display-name>
+    <description>Path to the TLS certificate (PEM). If empty and TLS enabled, a self-signed cert is generated.</description>
+    <value-attributes><empty-value-valid>true</empty-value-valid></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>vm_manager_tls_key_path</name>
+    <value></value>
+    <display-name>TLS Private Key Path</display-name>
+    <description>Path to the TLS private key (PEM).</description>
+    <value-attributes><empty-value-valid>true</empty-value-valid></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>vm_manager_daily_budget</name>
+    <value>0</value>
+    <display-name>Daily Budget (USD)</display-name>
+    <description>Daily budget limit for cluster compute costs. 0 = no limit. Triggers alert when exceeded.</description>
+    <value-attributes><type>float</type><minimum>0</minimum></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+</configuration>

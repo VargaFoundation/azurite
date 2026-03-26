@@ -1,0 +1,49 @@
+{
+  "AZURE_AUTOSCALER": {
+    "AZURE_AUTOSCALER_MASTER": [
+      {
+        "name": "autoscaler_process",
+        "label": "Azure Autoscaler Process",
+        "description": "Checks if the Autoscaler daemon is running.",
+        "interval": 1,
+        "scope": "HOST",
+        "enabled": true,
+        "source": {
+          "type": "PORT",
+          "uri": "{{azure-autoscaler-env/autoscaler_port}}",
+          "default_port": 8471,
+          "reporting": {
+            "ok": {"text": "Autoscaler is running on port {0}"},
+            "critical": {"text": "Autoscaler is NOT running on port {0}"}
+          }
+        }
+      },
+      {
+        "name": "worker_count_at_maximum",
+        "label": "Worker Count At Maximum",
+        "description": "Warns if worker count has reached the configured maximum.",
+        "interval": 5,
+        "scope": "SERVICE",
+        "enabled": true,
+        "source": {
+          "type": "SCRIPT",
+          "path": "AZURE_AUTOSCALER/1.0.0/package/scripts/alerts/check_max_capacity.py",
+          "parameters": []
+        }
+      },
+      {
+        "name": "scaling_failures",
+        "label": "Scaling Operation Failures",
+        "description": "Alerts on recent scaling operation failures.",
+        "interval": 5,
+        "scope": "SERVICE",
+        "enabled": true,
+        "source": {
+          "type": "SCRIPT",
+          "path": "AZURE_AUTOSCALER/1.0.0/package/scripts/alerts/check_scaling_failures.py",
+          "parameters": []
+        }
+      }
+    ]
+  }
+}

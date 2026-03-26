@@ -1,0 +1,58 @@
+{
+  "layouts": [
+    {
+      "layout_name": "default_azure_autoscaler_dashboard",
+      "display_name": "Autoscaler Dashboard",
+      "section_name": "AZURE_AUTOSCALER_SUMMARY",
+      "widgetLayoutInfo": [
+        {
+          "widget_name": "Worker Node Count",
+          "widget_type": "GRAPH",
+          "metrics": [
+            {"name": "metrics/autoscaler/current_worker_count", "service_name": "AZURE_AUTOSCALER", "component_name": "AZURE_AUTOSCALER_MASTER"},
+            {"name": "metrics/autoscaler/target_worker_count", "service_name": "AZURE_AUTOSCALER", "component_name": "AZURE_AUTOSCALER_MASTER"}
+          ],
+          "values": [
+            {"name": "Current", "value": "${metrics/autoscaler/current_worker_count}"},
+            {"name": "Target", "value": "${metrics/autoscaler/target_worker_count}"}
+          ],
+          "properties": {"graph_type": "LINE", "time_range": "12"}
+        },
+        {
+          "widget_name": "Cluster CPU Utilization",
+          "widget_type": "GAUGE",
+          "metrics": [{"name": "metrics/autoscaler/avg_cpu_pct", "service_name": "AZURE_AUTOSCALER", "component_name": "AZURE_AUTOSCALER_MASTER"}],
+          "values": [{"name": "CPU %", "value": "${metrics/autoscaler/avg_cpu_pct}"}],
+          "properties": {"warning_threshold": "80", "error_threshold": "95"}
+        },
+        {
+          "widget_name": "Cluster Memory Utilization",
+          "widget_type": "GAUGE",
+          "metrics": [{"name": "metrics/autoscaler/avg_memory_pct", "service_name": "AZURE_AUTOSCALER", "component_name": "AZURE_AUTOSCALER_MASTER"}],
+          "values": [{"name": "Memory %", "value": "${metrics/autoscaler/avg_memory_pct}"}],
+          "properties": {"warning_threshold": "80", "error_threshold": "95"}
+        },
+        {
+          "widget_name": "YARN Pending Containers",
+          "widget_type": "GRAPH",
+          "metrics": [{"name": "metrics/autoscaler/yarn_pending_containers", "service_name": "AZURE_AUTOSCALER", "component_name": "AZURE_AUTOSCALER_MASTER"}],
+          "values": [{"name": "Pending", "value": "${metrics/autoscaler/yarn_pending_containers}"}],
+          "properties": {"graph_type": "LINE", "time_range": "1"}
+        },
+        {
+          "widget_name": "Scaling Events",
+          "widget_type": "GRAPH",
+          "metrics": [
+            {"name": "metrics/autoscaler/scale_out_events", "service_name": "AZURE_AUTOSCALER", "component_name": "AZURE_AUTOSCALER_MASTER"},
+            {"name": "metrics/autoscaler/scale_in_events", "service_name": "AZURE_AUTOSCALER", "component_name": "AZURE_AUTOSCALER_MASTER"}
+          ],
+          "values": [
+            {"name": "Scale Out", "value": "${metrics/autoscaler/scale_out_events}"},
+            {"name": "Scale In", "value": "${metrics/autoscaler/scale_in_events}"}
+          ],
+          "properties": {"graph_type": "LINE", "time_range": "24"}
+        }
+      ]
+    }
+  ]
+}

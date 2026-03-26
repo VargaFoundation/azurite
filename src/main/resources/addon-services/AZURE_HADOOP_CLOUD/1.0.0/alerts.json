@@ -1,0 +1,45 @@
+{
+  "AZURE_HADOOP_CLOUD": {
+    "AZURE_HADOOP_CLOUD_CLIENT": [
+      {
+        "name": "azure_storage_connectivity",
+        "label": "Azure Storage Connectivity",
+        "description": "Checks if the configured Azure storage backend is reachable via HDFS commands.",
+        "interval": 5,
+        "scope": "HOST",
+        "enabled": true,
+        "source": {
+          "type": "SCRIPT",
+          "path": "AZURE_HADOOP_CLOUD/1.0.0/package/scripts/alerts/check_azure_storage.py",
+          "parameters": []
+        }
+      },
+      {
+        "name": "azure_credential_expiry",
+        "label": "Azure Credential Expiry",
+        "description": "Warns if Azure credentials (SAS token, OAuth token) are nearing expiration.",
+        "interval": 60,
+        "scope": "HOST",
+        "enabled": true,
+        "source": {
+          "type": "SCRIPT",
+          "path": "AZURE_HADOOP_CLOUD/1.0.0/package/scripts/alerts/check_credential_expiry.py",
+          "parameters": []
+        }
+      },
+      {
+        "name": "hadoop_azure_jar_present",
+        "label": "Hadoop Azure JAR Present",
+        "description": "Checks that hadoop-azure and azure-storage JARs are on the Hadoop classpath.",
+        "interval": 60,
+        "scope": "HOST",
+        "enabled": true,
+        "source": {
+          "type": "SCRIPT",
+          "path": "AZURE_HADOOP_CLOUD/1.0.0/package/scripts/alerts/check_azure_jars.py",
+          "parameters": []
+        }
+      }
+    ]
+  }
+}

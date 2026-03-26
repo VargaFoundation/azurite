@@ -1,0 +1,24 @@
+{
+  "name": "default",
+  "description": "Quick links for Azure VM Manager service",
+  "configuration": {
+    "protocol": {
+      "type": "HTTP_ONLY"
+    },
+    "links": [
+      {
+        "name": "vm_manager_api",
+        "label": "VM Manager API",
+        "requires_user_name": "false",
+        "component_name": "AZURE_VM_MANAGER_MASTER",
+        "url": "http://%@:%@/api/v1/health",
+        "port": {
+          "http_property": "azure-vm-manager-env/vm_manager_port",
+          "http_default_port": "8470",
+          "regex": "",
+          "site": "azure-vm-manager-env"
+        }
+      }
+    ]
+  }
+}
