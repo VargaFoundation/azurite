@@ -62,7 +62,7 @@
         </entry>
         <entry>
           <value>hdfs</value>
-          <label>HDFS (Local)</label>
+          <label>HDFS (Legacy - On-Premises)</label>
         </entry>
       </entries>
       <selection_cardinality>1</selection_cardinality>

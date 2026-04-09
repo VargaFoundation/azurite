@@ -253,8 +253,57 @@ class AutoscalerDaemon:
         except Exception as e:
             logger.error('Schedule evaluation error: %s', e)
 
+    @staticmethod
+    def _cron_field_matches(expr, value):
+        """Check if a single cron field expression matches a value.
+
+        Supports: * (any), exact (5), list (1,3,5), range (1-5),
+        step (*/5), range+step (1-30/5), named days (MON-FRI).
+        """
+        # Handle named days/months
+        day_map = {'SUN': '0', 'MON': '1', 'TUE': '2', 'WED': '3',
+                   'THU': '4', 'FRI': '5', 'SAT': '6'}
+        month_map = {'JAN': '1', 'FEB': '2', 'MAR': '3', 'APR': '4',
+                     'MAY': '5', 'JUN': '6', 'JUL': '7', 'AUG': '8',
+                     'SEP': '9', 'OCT': '10', 'NOV': '11', 'DEC': '12'}
+        for name, num in {**day_map, **month_map}.items():
+            expr = expr.replace(name, num)
+
+        # Handle comma-separated list (each element can be range/step)
+        # Handle comma-separated list (each element can be range/step)
+        if ',' in expr:
+            for part in expr.split(','):
+                if AutoscalerDaemon._cron_field_matches(part.strip(), value):
+                    return True
+            return False
+
+        # Handle step: */N or range/N
+        step = None
+        if '/' in expr:
+            expr, step_str = expr.split('/', 1)
+            step = int(step_str)
+
+        # Handle wildcard
+        if expr == '*':
+            if step:
+                return value % step == 0
+            return True
+
+        # Handle range: low-high
+        if '-' in expr:
+            low, high = int(expr.split('-', 1)[0]), int(expr.split('-', 1)[1])
+            if step:
+                return low <= value <= high and (value - low) % step == 0
+            return low <= value <= high
+
+        # Exact value
+        return int(expr) == value
+
     def _cron_matches(self, cron_expr, dt):
-        """Simple cron expression matcher (minute hour dom month dow)."""
+        """Cron expression matcher (minute hour dom month dow).
+
+        Supports: *, exact, list (,), range (-), step (/), named days/months.
+        """
         parts = cron_expr.split()
         if len(parts) != 5:
             return False
@@ -270,26 +319,7 @@ class AutoscalerDaemon:
             (parts[4], cron_dow),
         ]
 
-        for expr, value in checks:
-            if expr == '*':
-                continue
-            # Handle named days
-            day_map = {'SUN': '0', 'MON': '1', 'TUE': '2', 'WED': '3',
-                       'THU': '4', 'FRI': '5', 'SAT': '6'}
-            for name, num in day_map.items():
-                expr = expr.replace(name, num)
-
-            if '-' in expr:
-                low, high = expr.split('-', 1)
-                if not (int(low) <= value <= int(high)):
-                    return False
-            elif ',' in expr:
-                if value not in [int(v) for v in expr.split(',')]:
-                    return False
-            elif int(expr) != value:
-                return False
-
-        return True
+        return all(AutoscalerDaemon._cron_field_matches(expr, value) for expr, value in checks)
 
     def _get_worker_count(self):
         """Get current worker count from VM Manager. Returns None on failure."""
@@ -359,14 +389,24 @@ class AutoscalerRequestHandler(BaseHTTPRequestHandler):
         if self.path == '/api/v1/health':
             self._respond(200, {'status': 'healthy', 'paused': self.daemon_instance.paused
                                 if self.daemon_instance else False})
-            return
-        if not self._check_auth():
-            return
-        if self.path == '/api/v1/status':
+        elif self.path == '/api/v1/status':
             status = self.daemon_instance.get_status() if self.daemon_instance else {}
             self._respond(200, status)
+        elif self.path == '/api/v1/schedule/rules':
+            if self.daemon_instance:
+                rules = self.daemon_instance.config.get('schedule', {}).get('rules', [])
+                tz = self.daemon_instance.config.get('schedule', {}).get('timezone', 'UTC')
+                self._respond(200, {'timezone': tz, 'rules': rules})
+            else:
+                self._respond(200, {'timezone': 'UTC', 'rules': []})
         else:
             self._respond(404, {'error': 'Not found'})
+
+    def _read_body(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        if content_length > 0:
+            return json.loads(self.rfile.read(content_length))
+        return {}
 
     def do_POST(self):
         if not self._check_auth():
@@ -393,8 +433,76 @@ class AutoscalerRequestHandler(BaseHTTPRequestHandler):
                              self.daemon_instance.min_workers)
                 self.daemon_instance._execute_scale_in(current, target, 'Manual force scale-in')
             self._respond(200, {'action': 'scale_in'})
+        elif self.path == '/api/v1/scale/to':
+            self._handle_scale_to()
         else:
             self._respond(404, {'error': 'Not found'})
+
+    def do_PUT(self):
+        if not self._check_auth():
+            return
+        if self.path == '/api/v1/schedule/rules':
+            self._handle_update_schedule_rules()
+        else:
+            self._respond(404, {'error': 'Not found'})
+
+    def _handle_scale_to(self):
+        """Scale to an exact target worker count."""
+        if not self.daemon_instance:
+            self._respond(500, {'error': 'Daemon not initialized'})
+            return
+        body = self._read_body()
+        target_count = body.get('target_count')
+        if target_count is None or not isinstance(target_count, int) or target_count < 0:
+            self._respond(400, {'error': 'target_count must be a non-negative integer'})
+            return
+        d = self.daemon_instance
+        target_count = max(d.min_workers, min(target_count, d.max_workers))
+        current = d.current_worker_count
+        if target_count == current:
+            self._respond(200, {'action': 'no_change', 'current': current, 'target': target_count})
+        elif target_count > current:
+            d._execute_scale_out(current, target_count,
+                                 'Manual scale to {0}'.format(target_count))
+            self._respond(200, {'action': 'scale_out', 'current': current, 'target': target_count})
+        else:
+            d._execute_scale_in(current, target_count,
+                                'Manual scale to {0}'.format(target_count))
+            self._respond(200, {'action': 'scale_in', 'current': current, 'target': target_count})
+
+    def _handle_update_schedule_rules(self):
+        """Update schedule rules at runtime without restart."""
+        if not self.daemon_instance:
+            self._respond(500, {'error': 'Daemon not initialized'})
+            return
+        body = self._read_body()
+        rules = body.get('rules')
+        if rules is None or not isinstance(rules, list):
+            self._respond(400, {'error': 'rules must be a JSON array'})
+            return
+        # Validate each rule
+        for i, rule in enumerate(rules):
+            cron = rule.get('cron', '')
+            if not cron or len(cron.split()) != 5:
+                self._respond(400, {'error': 'Rule #{0}: cron must have 5 fields'.format(i + 1)})
+                return
+            if not rule.get('target_count') or not isinstance(rule.get('target_count'), int):
+                self._respond(400, {'error': 'Rule #{0}: target_count must be a positive integer'.format(i + 1)})
+                return
+        # Apply
+        tz = body.get('timezone')
+        if 'schedule' not in self.daemon_instance.config:
+            self.daemon_instance.config['schedule'] = {}
+        self.daemon_instance.config['schedule']['rules'] = rules
+        if tz:
+            self.daemon_instance.config['schedule']['timezone'] = tz
+        self.daemon_instance._last_schedule_trigger.clear()
+        logger.info('Schedule rules updated: %d rules', len(rules))
+        self._respond(200, {
+            'updated': True,
+            'rule_count': len(rules),
+            'timezone': self.daemon_instance.config['schedule'].get('timezone', 'UTC'),
+        })
 
     def _respond(self, status, body):
         self.send_response(status)

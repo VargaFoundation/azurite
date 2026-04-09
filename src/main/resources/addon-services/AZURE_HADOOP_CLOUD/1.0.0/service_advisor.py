@@ -55,12 +55,12 @@ class AzureHadoopCloudServiceAdvisor(service_advisor.ServiceAdvisor):
     """
 
     def getServiceConfigurationRecommendations(self, configurations, clusterData, services, hosts):
-        """Auto-compute fs.defaultFS and inject Azure filesystem properties."""
+        """Auto-compute fs.defaultFS, inject Azure filesystem properties, and configure dependent services."""
         props = self._get_service_configs(services)
         if not props:
             return
 
-        backend = props.get('azure-cloud-env', {}).get('azure_storage_backend', 'hdfs')
+        backend = props.get('azure-cloud-env', {}).get('azure_storage_backend', 'adls_gen2')
         account = props.get('azure-storage-site', {}).get('azure.storage.account.name', '')
         container = props.get('azure-storage-site', {}).get('azure.storage.container.name', '')
         auth_type = props.get('azure-storage-site', {}).get('azure.storage.auth.type', 'managed_identity')
@@ -116,6 +116,10 @@ class AzureHadoopCloudServiceAdvisor(service_advisor.ServiceAdvisor):
                 if key:
                     core_site['fs.azure.account.key.{0}'.format(fqdn)] = key
 
+        # Configure dependent Hadoop services for cloud storage
+        default_fs = core_site.get('fs.defaultFS', '')
+        self._recommend_dependent_service_configs(configurations, services, default_fs)
+
     def getServiceConfigurationsValidationItems(self, configurations, recommendedDefaults, services, hosts):
         """Validate Azure storage configuration completeness."""
         items = []
@@ -123,7 +127,27 @@ class AzureHadoopCloudServiceAdvisor(service_advisor.ServiceAdvisor):
         if not props:
             return items
 
-        backend = props.get('azure-cloud-env', {}).get('azure_storage_backend', 'hdfs')
+        backend = props.get('azure-cloud-env', {}).get('azure_storage_backend', 'adls_gen2')
+
+        if backend == 'hdfs':
+            items.append({
+                'type': 'configuration',
+                'level': 'WARN',
+                'message': 'HDFS storage backend is selected. For Azure deployments, '
+                           'ADLS Gen2 or WASB is strongly recommended for durability and scalability.',
+                'config-type': 'azure-cloud-env',
+                'config-name': 'azure_storage_backend'
+            })
+            installed = self._get_installed_service_names(services)
+            if 'HDFS' not in installed:
+                items.append({
+                    'type': 'configuration',
+                    'level': 'ERROR',
+                    'message': 'HDFS storage backend is selected but HDFS service is not installed. '
+                               'Either install HDFS or switch to ADLS Gen2/WASB.',
+                    'config-type': 'azure-cloud-env',
+                    'config-name': 'azure_storage_backend'
+                })
 
         if backend in ('adls_gen2', 'wasb'):
             account = props.get('azure-storage-site', {}).get('azure.storage.account.name', '')
@@ -196,11 +220,77 @@ class AzureHadoopCloudServiceAdvisor(service_advisor.ServiceAdvisor):
                             'config-name': field
                         })
 
+        # Cross-service validation: warn if dependent services use hdfs:// paths with cloud backend
+        if backend in ('adls_gen2', 'wasb'):
+            hdfs_path_checks = [
+                ('hive-site', 'hive.metastore.warehouse.dir', 'Hive warehouse directory'),
+                ('yarn-site', 'yarn.nodemanager.remote-app-log-dir', 'YARN remote app log directory'),
+                ('mapred-site', 'mapreduce.jobhistory.done-dir', 'MapReduce history done directory'),
+                ('tez-site', 'tez.am.staging-dir', 'Tez AM staging directory'),
+            ]
+            for config_type, config_name, label in hdfs_path_checks:
+                value = props.get(config_type, {}).get(config_name, '')
+                if value.startswith('hdfs://'):
+                    items.append({
+                        'type': 'configuration',
+                        'level': 'WARN',
+                        'message': '{0} uses hdfs:// but storage backend is {1}. '
+                                   'Use a relative path (e.g. /apps/hive/warehouse) to resolve against '
+                                   'the cloud storage defaultFS.'.format(label, backend),
+                        'config-type': config_type,
+                        'config-name': config_name
+                    })
+
         return items
 
     def getServiceComponentLayoutValidations(self, services, hosts):
         """Validate component placement."""
         return []
+
+    def _recommend_dependent_service_configs(self, configurations, services, default_fs):
+        """Inject cloud-aware paths into dependent Hadoop service configs."""
+        if not default_fs or default_fs.startswith('hdfs://'):
+            return
+
+        installed = self._get_installed_service_names(services)
+
+        def put_config(config_type, key, value):
+            if config_type not in configurations:
+                configurations[config_type] = {'properties': {}}
+            elif 'properties' not in configurations[config_type]:
+                configurations[config_type]['properties'] = {}
+            configurations[config_type]['properties'][key] = value
+
+        if 'HIVE' in installed:
+            put_config('hive-site', 'hive.metastore.warehouse.dir', '/apps/hive/warehouse')
+            put_config('hive-site', 'hive.exec.scratchdir', '/tmp/hive')
+
+        if 'YARN' in installed:
+            put_config('yarn-site', 'yarn.nodemanager.remote-app-log-dir', '/app-logs')
+            put_config('yarn-site', 'yarn.app.mapreduce.am.staging-dir', '/user')
+
+        if 'MAPREDUCE2' in installed:
+            put_config('mapred-site', 'mapreduce.jobhistory.intermediate-done-dir', '/mr-history/tmp')
+            put_config('mapred-site', 'mapreduce.jobhistory.done-dir', '/mr-history/done')
+
+        if 'TEZ' in installed:
+            put_config('tez-site', 'tez.am.staging-dir', '/tmp/tez-staging')
+
+        if 'SPARK2' in installed:
+            put_config('spark2-defaults', 'spark.sql.warehouse.dir', '/apps/spark/warehouse')
+            put_config('spark2-defaults', 'spark.eventLog.dir', '/spark2-history')
+            put_config('spark2-defaults', 'spark.history.fs.logDirectory', '/spark2-history')
+        elif 'SPARK' in installed:
+            put_config('spark-defaults', 'spark.sql.warehouse.dir', '/apps/spark/warehouse')
+            put_config('spark-defaults', 'spark.eventLog.dir', '/spark-history')
+            put_config('spark-defaults', 'spark.history.fs.logDirectory', '/spark-history')
+
+    def _get_installed_service_names(self, services):
+        """Return set of installed service names from the services descriptor."""
+        if not services or 'services' not in services:
+            return set()
+        return {s.get('StackServices', {}).get('service_name', '')
+                for s in services.get('services', [])}
 
     def _get_service_configs(self, services):
         """Extract configuration properties from services descriptor."""

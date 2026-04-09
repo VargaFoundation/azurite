@@ -77,7 +77,7 @@
       "type": "string",
       "defaultValue": "VirtualNetwork",
       "metadata": {
-        "description": "Source address prefix for management NSG rules (SSH, Ambari, HDFS, YARN). Use a CIDR range (e.g. '203.0.113.0/24') or 'VirtualNetwork'. Do NOT use '*' in production."
+        "description": "Source address prefix for management NSG rules (SSH, Ambari, YARN). Use a CIDR range (e.g. '203.0.113.0/24') or 'VirtualNetwork'. Do NOT use '*' in production."
       }
     }
   },
@@ -142,32 +142,6 @@
               "protocol": "Tcp",
               "sourcePortRange": "*",
               "destinationPortRange": "8443",
-              "sourceAddressPrefix": "[parameters('allowedSourceAddressPrefix')]",
-              "destinationAddressPrefix": "*"
-            }
-          },
-          {
-            "name": "Allow-HDFS-NameNode",
-            "properties": {
-              "priority": 1030,
-              "direction": "Inbound",
-              "access": "Allow",
-              "protocol": "Tcp",
-              "sourcePortRange": "*",
-              "destinationPortRange": "8020",
-              "sourceAddressPrefix": "VirtualNetwork",
-              "destinationAddressPrefix": "*"
-            }
-          },
-          {
-            "name": "Allow-HDFS-WebUI",
-            "properties": {
-              "priority": 1040,
-              "direction": "Inbound",
-              "access": "Allow",
-              "protocol": "Tcp",
-              "sourcePortRange": "*",
-              "destinationPortRange": "50070",
               "sourceAddressPrefix": "[parameters('allowedSourceAddressPrefix')]",
               "destinationAddressPrefix": "*"
             }

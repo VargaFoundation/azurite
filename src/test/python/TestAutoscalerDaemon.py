@@ -109,12 +109,34 @@ class TestAutoscalerRestApi(unittest.TestCase):
         conn.close()
         return status, body
 
-    def _post(self, path, token=None):
+    def _post(self, path, token=None, data=None):
         conn = HTTPConnection('127.0.0.1', self.port)
         headers = {}
         if token:
             headers['Authorization'] = 'Bearer {0}'.format(token)
-        conn.request('POST', path, headers=headers)
+        body_bytes = None
+        if data is not None:
+            body_bytes = json.dumps(data).encode()
+            headers['Content-Type'] = 'application/json'
+            headers['Content-Length'] = str(len(body_bytes))
+        conn.request('POST', path, body=body_bytes, headers=headers)
+        resp = conn.getresponse()
+        body = json.loads(resp.read().decode())
+        status = resp.status
+        conn.close()
+        return status, body
+
+    def _put(self, path, token=None, data=None):
+        conn = HTTPConnection('127.0.0.1', self.port)
+        headers = {}
+        if token:
+            headers['Authorization'] = 'Bearer {0}'.format(token)
+        body_bytes = None
+        if data is not None:
+            body_bytes = json.dumps(data).encode()
+            headers['Content-Type'] = 'application/json'
+            headers['Content-Length'] = str(len(body_bytes))
+        conn.request('PUT', path, body=body_bytes, headers=headers)
         resp = conn.getresponse()
         body = json.loads(resp.read().decode())
         status = resp.status
@@ -167,6 +189,80 @@ class TestAutoscalerRestApi(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertFalse(body['paused'])
         self.assertFalse(self.daemon.paused)
+
+    # ------------------------------------------------------------------ #
+    # GET /api/v1/schedule/rules
+    # ------------------------------------------------------------------ #
+    def test_get_schedule_rules(self):
+        """GET /api/v1/schedule/rules should return current rules."""
+        status, body = self._get('/api/v1/schedule/rules', token='test-secret-token')
+        self.assertEqual(status, 200)
+        self.assertIn('rules', body)
+        self.assertIn('timezone', body)
+
+    # ------------------------------------------------------------------ #
+    # PUT /api/v1/schedule/rules
+    # ------------------------------------------------------------------ #
+    def test_update_schedule_rules(self):
+        """PUT /api/v1/schedule/rules should update rules at runtime."""
+        new_rules = [
+            {'cron': '0 8 * * 1-5', 'target_count': 10, 'label': 'Weekday morning'},
+            {'cron': '0 20 * * 1-5', 'target_count': 3, 'label': 'Weekday evening'},
+        ]
+        status, body = self._put('/api/v1/schedule/rules', token='test-secret-token',
+                                 data={'rules': new_rules, 'timezone': 'Europe/Paris'})
+        self.assertEqual(status, 200)
+        self.assertTrue(body['updated'])
+        self.assertEqual(body['rule_count'], 2)
+        self.assertEqual(body['timezone'], 'Europe/Paris')
+
+        # Verify rules are persisted in memory
+        status, body = self._get('/api/v1/schedule/rules', token='test-secret-token')
+        self.assertEqual(len(body['rules']), 2)
+        self.assertEqual(body['timezone'], 'Europe/Paris')
+
+    def test_update_schedule_rules_invalid_cron(self):
+        """PUT with invalid cron should return 400."""
+        bad_rules = [{'cron': '0 8 *', 'target_count': 5}]
+        status, body = self._put('/api/v1/schedule/rules', token='test-secret-token',
+                                 data={'rules': bad_rules})
+        self.assertEqual(status, 400)
+        self.assertIn('error', body)
+
+    def test_update_schedule_rules_missing_target(self):
+        """PUT with missing target_count should return 400."""
+        bad_rules = [{'cron': '0 8 * * *'}]
+        status, body = self._put('/api/v1/schedule/rules', token='test-secret-token',
+                                 data={'rules': bad_rules})
+        self.assertEqual(status, 400)
+        self.assertIn('error', body)
+
+    # ------------------------------------------------------------------ #
+    # POST /api/v1/scale/to
+    # ------------------------------------------------------------------ #
+    def test_scale_to_target(self):
+        """POST /api/v1/scale/to should accept a target_count."""
+        self.daemon.current_worker_count = 2
+        self.daemon._execute_scale_out = MagicMock()
+        status, body = self._post('/api/v1/scale/to', token='test-secret-token',
+                                  data={'target_count': 5})
+        self.assertEqual(status, 200)
+        self.assertEqual(body['action'], 'scale_out')
+        self.assertEqual(body['target'], 5)
+
+    def test_scale_to_invalid(self):
+        """POST /api/v1/scale/to with invalid target should return 400."""
+        status, body = self._post('/api/v1/scale/to', token='test-secret-token',
+                                  data={'target_count': 'abc'})
+        self.assertEqual(status, 400)
+
+    def test_scale_to_no_change(self):
+        """POST /api/v1/scale/to with current count should return no_change."""
+        self.daemon.current_worker_count = 5
+        status, body = self._post('/api/v1/scale/to', token='test-secret-token',
+                                  data={'target_count': 5})
+        self.assertEqual(status, 200)
+        self.assertEqual(body['action'], 'no_change')
 
 
 # ====================================================================== #

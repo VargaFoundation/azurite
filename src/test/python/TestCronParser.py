@@ -18,6 +18,7 @@ from autoscaler_daemon import AutoscalerDaemon
 class CronMatcherStub:
     """Minimal stub to test _cron_matches without full daemon initialisation."""
     _cron_matches = AutoscalerDaemon._cron_matches
+    _cron_field_matches = AutoscalerDaemon._cron_field_matches
 
 
 class TestCronParser(unittest.TestCase):
@@ -109,6 +110,61 @@ class TestCronParser(unittest.TestCase):
         """'0 0 1 6 *' should match June 1st at midnight."""
         self.assertTrue(self.matcher._cron_matches('0 0 1 6 *', datetime(2026, 6, 1, 0, 0)))
         self.assertFalse(self.matcher._cron_matches('0 0 1 6 *', datetime(2026, 7, 1, 0, 0)))
+
+    # ------------------------------------------------------------------ #
+    # Step expressions (*/N)
+    # ------------------------------------------------------------------ #
+    def test_star_step_every_5_minutes(self):
+        """'*/5 * * * *' should match minutes 0, 5, 10, ... 55."""
+        self.assertTrue(self.matcher._cron_matches('*/5 * * * *', datetime(2026, 1, 1, 0, 0)))
+        self.assertTrue(self.matcher._cron_matches('*/5 * * * *', datetime(2026, 1, 1, 0, 15)))
+        self.assertTrue(self.matcher._cron_matches('*/5 * * * *', datetime(2026, 1, 1, 12, 30)))
+        self.assertFalse(self.matcher._cron_matches('*/5 * * * *', datetime(2026, 1, 1, 0, 3)))
+        self.assertFalse(self.matcher._cron_matches('*/5 * * * *', datetime(2026, 1, 1, 0, 22)))
+
+    def test_star_step_every_2_hours(self):
+        """'0 */2 * * *' should match hours 0, 2, 4, ... 22."""
+        self.assertTrue(self.matcher._cron_matches('0 */2 * * *', datetime(2026, 1, 1, 0, 0)))
+        self.assertTrue(self.matcher._cron_matches('0 */2 * * *', datetime(2026, 1, 1, 14, 0)))
+        self.assertFalse(self.matcher._cron_matches('0 */2 * * *', datetime(2026, 1, 1, 3, 0)))
+
+    def test_range_step(self):
+        """'1-30/5 * * * *' should match 1, 6, 11, 16, 21, 26 but NOT 0 or 31."""
+        self.assertTrue(self.matcher._cron_matches('1-30/5 * * * *', datetime(2026, 1, 1, 0, 1)))
+        self.assertTrue(self.matcher._cron_matches('1-30/5 * * * *', datetime(2026, 1, 1, 0, 6)))
+        self.assertTrue(self.matcher._cron_matches('1-30/5 * * * *', datetime(2026, 1, 1, 0, 26)))
+        self.assertFalse(self.matcher._cron_matches('1-30/5 * * * *', datetime(2026, 1, 1, 0, 0)))
+        self.assertFalse(self.matcher._cron_matches('1-30/5 * * * *', datetime(2026, 1, 1, 0, 3)))
+        self.assertFalse(self.matcher._cron_matches('1-30/5 * * * *', datetime(2026, 1, 1, 0, 31)))
+
+    def test_step_every_15_minutes(self):
+        """'*/15 * * * *' should match 0, 15, 30, 45."""
+        for m in (0, 15, 30, 45):
+            self.assertTrue(self.matcher._cron_matches('*/15 * * * *', datetime(2026, 1, 1, 0, m)),
+                            msg='minute {0} should match */15'.format(m))
+        for m in (1, 7, 14, 29, 44):
+            self.assertFalse(self.matcher._cron_matches('*/15 * * * *', datetime(2026, 1, 1, 0, m)),
+                             msg='minute {0} should NOT match */15'.format(m))
+
+    # ------------------------------------------------------------------ #
+    # Named months
+    # ------------------------------------------------------------------ #
+    def test_named_month_JAN(self):
+        """'0 0 1 JAN *' should match January 1st."""
+        self.assertTrue(self.matcher._cron_matches('0 0 1 JAN *', datetime(2026, 1, 1, 0, 0)))
+        self.assertFalse(self.matcher._cron_matches('0 0 1 JAN *', datetime(2026, 2, 1, 0, 0)))
+
+    # ------------------------------------------------------------------ #
+    # Combined comma + range + step
+    # ------------------------------------------------------------------ #
+    def test_comma_with_range(self):
+        """'0 9,17 * * MON-FRI' should match weekday 9:00 and 17:00."""
+        # Wednesday 9:00
+        self.assertTrue(self.matcher._cron_matches('0 9,17 * * MON-FRI', datetime(2026, 3, 25, 9, 0)))
+        # Wednesday 17:00
+        self.assertTrue(self.matcher._cron_matches('0 9,17 * * MON-FRI', datetime(2026, 3, 25, 17, 0)))
+        # Saturday 9:00
+        self.assertFalse(self.matcher._cron_matches('0 9,17 * * MON-FRI', datetime(2026, 3, 28, 9, 0)))
 
     # ------------------------------------------------------------------ #
     # Invalid expressions

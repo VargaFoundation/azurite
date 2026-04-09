@@ -4,9 +4,12 @@
 
   <property>
     <name>fs.defaultFS</name>
-    <value>hdfs://localhost:8020</value>
+    <value></value>
     <display-name>Default Filesystem</display-name>
     <description>The default filesystem URI. Auto-computed by the service advisor based on storage backend selection.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
     <depends-on>
       <property>
         <type>azure-cloud-env</type>

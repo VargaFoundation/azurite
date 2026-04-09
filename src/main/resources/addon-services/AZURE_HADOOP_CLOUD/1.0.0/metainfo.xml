@@ -61,7 +61,6 @@
         <config-type>azure-storage-site</config-type>
         <config-type>azure-identity-site</config-type>
         <config-type>core-site</config-type>
-        <config-type>hdfs-site</config-type>
       </configuration-dependencies>
 
       <restartRequiredAfterChange>true</restartRequiredAfterChange>
