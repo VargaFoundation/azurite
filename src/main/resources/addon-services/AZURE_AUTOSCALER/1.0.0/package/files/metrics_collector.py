@@ -6,6 +6,7 @@ Collects YARN cluster metrics and system-level CPU/memory metrics.
 import json
 import logging
 import os
+import ssl
 
 try:
     from urllib.request import urlopen, Request
@@ -14,6 +15,8 @@ except ImportError:
     from urllib2 import urlopen, Request, URLError
 
 logger = logging.getLogger('metrics_collector')
+
+_ssl_context = ssl.create_default_context()
 
 
 class MetricsCollector:
@@ -32,8 +35,8 @@ class MetricsCollector:
         try:
             req = Request(url)
             req.add_header('Accept', 'application/json')
-            response = urlopen(req, timeout=10)
-            data = json.loads(response.read().decode())
+            with urlopen(req, timeout=10, context=_ssl_context) as response:
+                data = json.loads(response.read().decode())
             metrics = data.get('clusterMetrics', {})
 
             return {

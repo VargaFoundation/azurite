@@ -7,8 +7,11 @@ import argparse
 import functools
 import json
 import logging
+import logging.handlers
 import os
+import signal
 import ssl
+import sys
 import threading
 import time as _time
 import time
@@ -56,6 +59,7 @@ class AzureVmOperations:
 
         # VM inventory tracking
         self._inventory_file = os.path.join(config.get('data_dir', '/tmp'), 'vm_inventory.json')
+        self._inventory_lock = threading.Lock()
         self._inventory = self._load_inventory()
 
         # Reconcile inventory with Azure on startup
@@ -81,20 +85,15 @@ class AzureVmOperations:
             )
 
     def _init_clients(self):
-        """Initialize Azure management clients."""
-        try:
-            from azure.mgmt.compute import ComputeManagementClient
-            from azure.mgmt.network import NetworkManagementClient
-            from azure.mgmt.resource import ResourceManagementClient
+        """Initialize Azure management clients. Raises on failure."""
+        from azure.mgmt.compute import ComputeManagementClient
+        from azure.mgmt.network import NetworkManagementClient
+        from azure.mgmt.resource import ResourceManagementClient
 
-            self._compute_client = ComputeManagementClient(self._credential, self.subscription_id)
-            self._network_client = NetworkManagementClient(self._credential, self.subscription_id)
-            self._resource_client = ResourceManagementClient(self._credential, self.subscription_id)
-            logger.info('Azure SDK clients initialized successfully')
-        except ImportError:
-            logger.warning('Azure SDK not installed. VM operations will be unavailable.')
-        except Exception as e:
-            logger.error('Failed to initialize Azure clients: %s', e)
+        self._compute_client = ComputeManagementClient(self._credential, self.subscription_id)
+        self._network_client = NetworkManagementClient(self._credential, self.subscription_id)
+        self._resource_client = ResourceManagementClient(self._credential, self.subscription_id)
+        logger.info('Azure SDK clients initialized successfully')
 
     def _load_inventory(self):
         """Load VM inventory from state file."""
@@ -239,15 +238,16 @@ class AzureVmOperations:
         vm = vm_poller.result()
 
         # Update inventory
-        self._inventory['vms'].append({
-            'name': vm_name,
-            'role': role,
-            'size': vm_size,
-            'status': 'running',
-            'nic_name': nic_name,
-            'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-        })
-        self._save_inventory()
+        with self._inventory_lock:
+            self._inventory['vms'].append({
+                'name': vm_name,
+                'role': role,
+                'size': vm_size,
+                'status': 'running',
+                'nic_name': nic_name,
+                'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+            })
+            self._save_inventory()
 
         logger.info('VM %s created successfully', vm_name)
         return vm
@@ -309,16 +309,17 @@ class AzureVmOperations:
             self._remove_from_inventory(vm_name)
             logger.info('VM %s deleted successfully', vm_name)
         else:
-            # Mark as delete_failed
-            for v in self._inventory['vms']:
-                if v['name'] == vm_name:
-                    v['status'] = 'delete_failed'
-            self._save_inventory()
+            with self._inventory_lock:
+                for v in self._inventory['vms']:
+                    if v['name'] == vm_name:
+                        v['status'] = 'delete_failed'
+                self._save_inventory()
             logger.warning('VM %s partially deleted, marked as delete_failed', vm_name)
 
     def list_vms(self, role_filter=None):
         """List managed VMs, optionally filtered by role."""
-        vms = self._inventory.get('vms', [])
+        with self._inventory_lock:
+            vms = list(self._inventory.get('vms', []))
         if role_filter:
             vms = [v for v in vms if v.get('role') == role_filter]
         return vms
@@ -336,8 +337,9 @@ class AzureVmOperations:
 
     def _remove_from_inventory(self, vm_name):
         """Remove VM from inventory."""
-        self._inventory['vms'] = [v for v in self._inventory['vms'] if v.get('name') != vm_name]
-        self._save_inventory()
+        with self._inventory_lock:
+            self._inventory['vms'] = [v for v in self._inventory['vms'] if v.get('name') != vm_name]
+            self._save_inventory()
 
     def reconcile(self):
         """Reconcile local inventory with actual Azure VMs."""
@@ -419,7 +421,9 @@ class VmManagerRequestHandler(BaseHTTPRequestHandler):
 
     def _check_auth(self):
         if not self.api_token:
-            return True  # No token configured = no auth required
+            self._respond(403, {'error': 'No API token configured. '
+                                'Authentication is mandatory.'})
+            return False
         auth = self.headers.get('Authorization', '')
         if auth == 'Bearer {}'.format(self.api_token):
             return True
@@ -427,14 +431,16 @@ class VmManagerRequestHandler(BaseHTTPRequestHandler):
         return False
 
     def do_GET(self):
+        if not self._check_auth():
+            return
         if self.path == '/api/v1/health':
-            health = {'status': 'healthy', 'mode': 'managed' if self.vm_ops else 'existing'}
+            healthy = not self.vm_ops or self.vm_ops._compute_client is not None
+            health = {'status': 'healthy' if healthy else 'degraded',
+                      'mode': 'managed' if self.vm_ops else 'existing'}
             if self.vm_ops:
                 health['vm_count'] = self.vm_ops.get_worker_count()
                 health['azure_sdk'] = self.vm_ops._compute_client is not None
             self._respond(200, health)
-            return
-        if not self._check_auth():
             return
         if self.path == '/api/v1/vms':
             vms = self.vm_ops.list_vms() if self.vm_ops else []
@@ -535,15 +541,26 @@ def main():
     parser = argparse.ArgumentParser(description='Azure VM Manager REST daemon')
     parser.add_argument('--config', required=True, help='Path to VM manager config JSON')
     parser.add_argument('--port', type=int, default=8470, help='REST API port')
+    parser.add_argument('--pid-file', default='', help='Path to write PID file')
     args = parser.parse_args()
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(name)s %(levelname)s %(message)s'
-    )
 
     with open(args.config, 'r') as f:
         config = json.load(f)
+
+    # Setup logging with rotation
+    log_dir = config.get('log_dir', '/var/log/azure-vm-manager')
+    log_file = os.path.join(log_dir, 'vm_manager.log')
+    handler = logging.handlers.RotatingFileHandler(
+        log_file, maxBytes=50 * 1024 * 1024, backupCount=5)
+    handler.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s'))
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(handler)
+
+    # Write PID file from the daemon process itself
+    if args.pid_file:
+        with open(args.pid_file, 'w') as pf:
+            pf.write(str(os.getpid()))
 
     mode = config.get('mode', 'managed')
     if mode == 'managed':
@@ -582,7 +599,8 @@ def main():
         except Exception as e:
             logger.warning('Failed to initialize health monitor: %s', e)
 
-    server = HTTPServer(('0.0.0.0', args.port), VmManagerRequestHandler)
+    bind_address = config.get('bind_address', '127.0.0.1')
+    server = HTTPServer((bind_address, args.port), VmManagerRequestHandler)
 
     # TLS support
     tls_cert = config.get('tls_cert_path', '')
@@ -593,11 +611,25 @@ def main():
         server.socket = context.wrap_socket(server.socket, server_side=True)
         logger.info('TLS enabled for VM Manager daemon')
 
-    logger.info('VM Manager daemon started on port %d (mode=%s)', args.port, mode)
+    if not config.get('api_token', ''):
+        logger.error('No API token configured. Set api_token in the config file.')
+        sys.exit(1)
+
+    def _shutdown_handler(signum, frame):
+        logger.info('Received signal %d, shutting down gracefully...', signum)
+        server.shutdown()
+
+    signal.signal(signal.SIGTERM, _shutdown_handler)
+    signal.signal(signal.SIGINT, _shutdown_handler)
+
+    logger.info('VM Manager daemon started on %s:%d (mode=%s)', bind_address, args.port, mode)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         server.shutdown()
+    finally:
+        if args.pid_file and os.path.exists(args.pid_file):
+            os.remove(args.pid_file)
 
 
 if __name__ == '__main__':

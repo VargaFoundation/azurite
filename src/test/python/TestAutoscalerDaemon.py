@@ -125,8 +125,13 @@ class TestAutoscalerRestApi(unittest.TestCase):
     # Health endpoint (no auth required)
     # ------------------------------------------------------------------ #
     def test_health_endpoint_no_auth(self):
-        """GET /api/v1/health should return 200 even without an auth token."""
+        """GET /api/v1/health without a token should return 401 (auth is mandatory)."""
         status, body = self._get('/api/v1/health')
+        self.assertEqual(status, 401)
+
+    def test_health_endpoint_with_auth(self):
+        """GET /api/v1/health with a valid token should return 200."""
+        status, body = self._get('/api/v1/health', token='test-secret-token')
         self.assertEqual(status, 200)
         self.assertEqual(body['status'], 'healthy')
 

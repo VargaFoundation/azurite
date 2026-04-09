@@ -5,6 +5,7 @@ before VM deletion to prevent container failures and data loss.
 """
 import json
 import logging
+import ssl
 import time
 
 try:
@@ -14,6 +15,8 @@ except ImportError:
     from urllib2 import urlopen, Request, URLError
 
 logger = logging.getLogger('yarn_decommissioner')
+
+_ssl_context = ssl.create_default_context()
 
 
 class YarnDecommissioner:
@@ -102,7 +105,8 @@ class YarnDecommissioner:
         try:
             req = Request(url, data=data, method='PUT')
             req.add_header('Content-Type', 'application/json')
-            response = urlopen(req, timeout=10)
+            with urlopen(req, timeout=10, context=_ssl_context) as response:
+                pass
             logger.info('Decommission requested for node %s (ID: %s)', hostname, node_id)
         except Exception as e:
             logger.error('Failed to request decommission for %s: %s', hostname, e)
@@ -119,7 +123,7 @@ class YarnDecommissioner:
         try:
             req = Request(url, data=data, method='PUT')
             req.add_header('Content-Type', 'application/json')
-            urlopen(req, timeout=10)
+            urlopen(req, timeout=10, context=_ssl_context)
             logger.info('Forced decommission for node %s', hostname)
         except Exception as e:
             logger.error('Failed to force decommission %s: %s', hostname, e)
@@ -130,8 +134,8 @@ class YarnDecommissioner:
         try:
             req = Request(url)
             req.add_header('Accept', 'application/json')
-            response = urlopen(req, timeout=10)
-            data = json.loads(response.read().decode())
+            with urlopen(req, timeout=10, context=_ssl_context) as response:
+                data = json.loads(response.read().decode())
             nodes = data.get('nodes', {}).get('node', [])
 
             for node in nodes:
@@ -154,8 +158,8 @@ class YarnDecommissioner:
         try:
             req = Request(url)
             req.add_header('Accept', 'application/json')
-            response = urlopen(req, timeout=10)
-            data = json.loads(response.read().decode())
+            with urlopen(req, timeout=10, context=_ssl_context) as response:
+                data = json.loads(response.read().decode())
             node = data.get('node', {})
             return node.get('numContainers', 0)
         except Exception as e:

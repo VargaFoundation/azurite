@@ -131,12 +131,12 @@ echo ""
 # --------------------------------------------------------------------------- #
 info "Installing OpenJDK 8..."
 apt-get update -qq
-apt-get install -y -qq openjdk-8-jdk > /dev/null
+apt-get install -y -qq openjdk-11-jdk > /dev/null
 
 # Set JAVA_HOME globally
-export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 if ! grep -q "JAVA_HOME" /etc/environment; then
-    echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> /etc/environment
+    echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> /etc/environment
 fi
 success "Java 8 installed. JAVA_HOME=${JAVA_HOME}"
 
@@ -146,7 +146,7 @@ success "Java 8 installed. JAVA_HOME=${JAVA_HOME}"
 info "Adding Ambari ${AMBARI_VERSION} repository..."
 
 # Add Ambari repo
-wget -nv "https://public-repo-1.hortonworks.com/ambari/ubuntu18/2.x/updates/${AMBARI_VERSION}/ambari.list" \
+wget -nv "https://public-repo-1.hortonworks.com/ambari/ubuntu22/2.x/updates/${AMBARI_VERSION}/ambari.list" \
     -O /etc/apt/sources.list.d/ambari.list
 
 # Import GPG key

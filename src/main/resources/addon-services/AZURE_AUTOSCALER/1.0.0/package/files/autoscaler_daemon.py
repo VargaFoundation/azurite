@@ -7,7 +7,9 @@ Also exposes a REST API for manual control and status queries.
 import argparse
 import json
 import logging
+import logging.handlers
 import os
+import signal
 import ssl
 import sys
 import threading
@@ -28,6 +30,24 @@ try:
     from urllib.error import URLError
 except ImportError:
     from urllib2 import urlopen, Request, URLError
+
+_ssl_context = ssl.create_default_context()
+
+
+def _http_retry(func, max_attempts=3, base_delay=2):
+    """Execute a function with retry and exponential backoff."""
+    last_error = None
+    for attempt in range(max_attempts):
+        try:
+            return func()
+        except Exception as e:
+            last_error = e
+            if attempt < max_attempts - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.warning('HTTP call failed (attempt %d/%d): %s. Retrying in %ds...',
+                               attempt + 1, max_attempts, e, delay)
+                time.sleep(delay)
+    raise last_error
 
 
 class AutoscalerDaemon:
@@ -91,7 +111,11 @@ class AutoscalerDaemon:
         self.last_metrics = metrics or {}
 
         # Get current worker count from VM Manager
-        self.current_worker_count = self._get_worker_count()
+        worker_count = self._get_worker_count()
+        if worker_count is None:
+            logger.warning('Failed to get worker count, skipping evaluation')
+            return
+        self.current_worker_count = worker_count
 
         if metrics is None:
             logger.warning('Failed to collect metrics, skipping evaluation')
@@ -126,13 +150,17 @@ class AutoscalerDaemon:
             logger.info('SCALE OUT: Adding %d workers (%d -> %d). Reason: %s', count, current, target, reason)
 
             data = json.dumps({'count': count}).encode()
-            req = Request('{0}/api/v1/workers/provision'.format(self.vm_manager_url),
-                          data=data, method='POST')
-            req.add_header('Content-Type', 'application/json')
-            if self.vm_manager_api_token:
-                req.add_header('Authorization', 'Bearer {}'.format(self.vm_manager_api_token))
-            response = urlopen(req, timeout=60)
-            result = json.loads(response.read().decode())
+
+            def _do_provision():
+                req = Request('{0}/api/v1/workers/provision'.format(self.vm_manager_url),
+                              data=data, method='POST')
+                req.add_header('Content-Type', 'application/json')
+                if self.vm_manager_api_token:
+                    req.add_header('Authorization', 'Bearer {}'.format(self.vm_manager_api_token))
+                with urlopen(req, timeout=60, context=_ssl_context) as resp:
+                    return json.loads(resp.read().decode())
+
+            result = _http_retry(_do_provision)
             logger.info('Scale-out result: %s', result)
             self.policy_engine.record_scale_out()
             self.scale_out_events += 1
@@ -152,6 +180,9 @@ class AutoscalerDaemon:
             logger.info('SCALE IN: Removing %d workers (%d -> %d). Reason: %s', count, current, target, reason)
             try:
                 candidates = self._get_scale_in_candidates(count)
+                if candidates is None:
+                    logger.error('Failed to get scale-in candidates, aborting scale-in')
+                    return
                 if not candidates:
                     logger.warning('No scale-in candidates available')
                     return
@@ -160,14 +191,18 @@ class AutoscalerDaemon:
                     candidates, self.graceful_timeout)
 
                 if decommissioned:
-                    data = json.dumps({'hostnames': decommissioned}).encode()
-                    req = Request('{0}/api/v1/workers/decommission'.format(self.vm_manager_url),
-                                  data=data, method='POST')
-                    req.add_header('Content-Type', 'application/json')
-                    if self.vm_manager_api_token:
-                        req.add_header('Authorization', 'Bearer {0}'.format(self.vm_manager_api_token))
-                    response = urlopen(req, timeout=60)
-                    result = json.loads(response.read().decode())
+                    decom_data = json.dumps({'hostnames': decommissioned}).encode()
+
+                    def _do_decommission():
+                        req = Request('{0}/api/v1/workers/decommission'.format(self.vm_manager_url),
+                                      data=decom_data, method='POST')
+                        req.add_header('Content-Type', 'application/json')
+                        if self.vm_manager_api_token:
+                            req.add_header('Authorization', 'Bearer {0}'.format(self.vm_manager_api_token))
+                        with urlopen(req, timeout=60, context=_ssl_context) as resp:
+                            return json.loads(resp.read().decode())
+
+                    result = _http_retry(_do_decommission)
                     logger.info('Scale-in result: %s', result)
 
                 self.policy_engine.record_scale_in()
@@ -257,33 +292,34 @@ class AutoscalerDaemon:
         return True
 
     def _get_worker_count(self):
-        """Get current worker count from VM Manager."""
+        """Get current worker count from VM Manager. Returns None on failure."""
         try:
             url = '{0}/api/v1/workers/count'.format(self.vm_manager_url)
             req = Request(url)
             if self.vm_manager_api_token:
                 req.add_header('Authorization', 'Bearer {}'.format(self.vm_manager_api_token))
-            response = urlopen(req, timeout=10)
-            data = json.loads(response.read().decode())
+            with urlopen(req, timeout=10, context=_ssl_context) as response:
+                data = json.loads(response.read().decode())
             return data.get('worker_count', 0)
-        except Exception:
-            return self.current_worker_count
+        except Exception as e:
+            logger.error('Failed to get worker count: %s', e)
+            return None
 
     def _get_scale_in_candidates(self, count):
-        """Get hostnames of workers to remove."""
+        """Get hostnames of workers to remove. Returns None on failure."""
         try:
             url = '{0}/api/v1/vms'.format(self.vm_manager_url)
             req = Request(url)
             if self.vm_manager_api_token:
                 req.add_header('Authorization', 'Bearer {}'.format(self.vm_manager_api_token))
-            response = urlopen(req, timeout=10)
-            data = json.loads(response.read().decode())
+            with urlopen(req, timeout=10, context=_ssl_context) as response:
+                data = json.loads(response.read().decode())
             workers = [v for v in data.get('vms', []) if v.get('role') == 'worker']
             workers.sort(key=lambda v: v.get('created_at', ''), reverse=True)
             return [w['name'] for w in workers[:count]]
         except Exception as e:
             logger.error('Failed to get scale-in candidates: %s', e)
-            return []
+            return None
 
     def get_status(self):
         """Get current autoscaler status."""
@@ -308,7 +344,9 @@ class AutoscalerRequestHandler(BaseHTTPRequestHandler):
 
     def _check_auth(self):
         if not self.api_token:
-            return True  # No token configured = no auth required
+            self._respond(403, {'error': 'No API token configured. '
+                                'Authentication is mandatory.'})
+            return False
         auth = self.headers.get('Authorization', '')
         if auth == 'Bearer {}'.format(self.api_token):
             return True
@@ -316,6 +354,8 @@ class AutoscalerRequestHandler(BaseHTTPRequestHandler):
         return False
 
     def do_GET(self):
+        if not self._check_auth():
+            return
         if self.path == '/api/v1/health':
             self._respond(200, {'status': 'healthy', 'paused': self.daemon_instance.paused
                                 if self.daemon_instance else False})
@@ -370,22 +410,38 @@ def main():
     parser = argparse.ArgumentParser(description='Azure Autoscaler daemon')
     parser.add_argument('--config', required=True, help='Path to autoscaler config JSON')
     parser.add_argument('--port', type=int, default=8471, help='REST API port')
+    parser.add_argument('--pid-file', default='', help='Path to write PID file')
     args = parser.parse_args()
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(name)s %(levelname)s %(message)s'
-    )
 
     with open(args.config, 'r') as f:
         config = json.load(f)
+
+    # Setup logging with rotation
+    log_dir = config.get('log_dir', '/var/log/azure-autoscaler')
+    log_file = os.path.join(log_dir, 'autoscaler.log')
+    handler = logging.handlers.RotatingFileHandler(
+        log_file, maxBytes=50 * 1024 * 1024, backupCount=5)
+    handler.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s'))
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(handler)
+
+    # Write PID file from the daemon process itself
+    if args.pid_file:
+        with open(args.pid_file, 'w') as pf:
+            pf.write(str(os.getpid()))
+
+    if not config.get('api_token', ''):
+        logger.error('No API token configured. Set api_token in the config file.')
+        sys.exit(1)
 
     daemon = AutoscalerDaemon(config)
     AutoscalerRequestHandler.daemon_instance = daemon
     AutoscalerRequestHandler.api_token = config.get('api_token', '')
 
     # Start REST API in background thread
-    server = HTTPServer(('0.0.0.0', args.port), AutoscalerRequestHandler)
+    bind_address = config.get('bind_address', '127.0.0.1')
+    server = HTTPServer((bind_address, args.port), AutoscalerRequestHandler)
 
     # TLS support
     tls_cert = config.get('tls_cert_path', '')
@@ -396,9 +452,17 @@ def main():
         server.socket = context.wrap_socket(server.socket, server_side=True)
         logger.info('TLS enabled for Autoscaler daemon')
 
+    def _shutdown_handler(signum, frame):
+        logger.info('Received signal %d, shutting down gracefully...', signum)
+        daemon.running = False
+        server.shutdown()
+
+    signal.signal(signal.SIGTERM, _shutdown_handler)
+    signal.signal(signal.SIGINT, _shutdown_handler)
+
     api_thread = threading.Thread(target=server.serve_forever, daemon=True)
     api_thread.start()
-    logger.info('Autoscaler REST API started on port %d', args.port)
+    logger.info('Autoscaler REST API started on %s:%d', bind_address, args.port)
 
     # Run main evaluation loop
     try:
@@ -406,6 +470,9 @@ def main():
     except KeyboardInterrupt:
         daemon.running = False
         server.shutdown()
+    finally:
+        if args.pid_file and os.path.exists(args.pid_file):
+            os.remove(args.pid_file)
 
 
 if __name__ == '__main__':

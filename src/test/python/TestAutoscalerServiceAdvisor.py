@@ -19,25 +19,32 @@ _spec.loader.exec_module(_mod)
 AzureAutoscalerServiceAdvisor = _mod.AzureAutoscalerServiceAdvisor
 
 
-def _build_services(autoscaler_site=None):
+def _build_services(autoscaler_site=None, autoscaler_env=None):
     """Build a services dict in the Ambari format expected by _get_service_configs."""
     configurations = []
     if autoscaler_site is not None:
         configurations.append({'azure-autoscaler-site': {'properties': autoscaler_site}})
+    if autoscaler_env is not None:
+        configurations.append({'azure-autoscaler-env': {'properties': autoscaler_env}})
     return {'configurations': configurations}
 
 
 def _valid_autoscaler_services():
     """Return a services dict representing a fully valid autoscaler configuration."""
-    return _build_services(autoscaler_site={
-        'autoscaler.cpu.scale.out.threshold': '80',
-        'autoscaler.cpu.scale.in.threshold': '30',
-        'autoscaler.memory.scale.out.threshold': '80',
-        'autoscaler.memory.scale.in.threshold': '30',
-        'autoscaler.evaluation.interval.seconds': '60',
-        'autoscaler.cooldown.scale.out.seconds': '300',
-        'autoscaler.cooldown.scale.in.seconds': '600',
-    })
+    return _build_services(
+        autoscaler_site={
+            'autoscaler.cpu.scale.out.threshold': '80',
+            'autoscaler.cpu.scale.in.threshold': '30',
+            'autoscaler.memory.scale.out.threshold': '80',
+            'autoscaler.memory.scale.in.threshold': '30',
+            'autoscaler.evaluation.interval.seconds': '60',
+            'autoscaler.cooldown.scale.out.seconds': '300',
+            'autoscaler.cooldown.scale.in.seconds': '600',
+        },
+        autoscaler_env={
+            'autoscaler_tls_enabled': 'true',
+        },
+    )
 
 
 class TestAutoscalerServiceAdvisorValidation(unittest.TestCase):

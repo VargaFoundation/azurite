@@ -99,12 +99,12 @@ echo ""
 # --------------------------------------------------------------------------- #
 info "Installing OpenJDK 8..."
 apt-get update -qq
-apt-get install -y -qq openjdk-8-jdk > /dev/null
+apt-get install -y -qq openjdk-11-jdk > /dev/null
 
 # Set JAVA_HOME globally
-export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 if ! grep -q "JAVA_HOME" /etc/environment; then
-    echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> /etc/environment
+    echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> /etc/environment
 fi
 success "Java 8 installed. JAVA_HOME=${JAVA_HOME}"
 
@@ -119,20 +119,28 @@ success "PostgreSQL installed and running."
 
 info "Creating 'ambari' database and user..."
 
+# Generate a random password for the PostgreSQL ambari user
+AMBARI_DB_PASSWORD=$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 32)
+AMBARI_DB_PASSWORD_FILE="/etc/ambari-server/.db-password"
+
 # Create the ambari user and database (idempotent)
 sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='ambari'" | grep -q 1 || \
-    sudo -u postgres psql -c "CREATE USER ambari WITH PASSWORD 'ambari';"
+    sudo -u postgres psql -c "CREATE USER ambari WITH PASSWORD '${AMBARI_DB_PASSWORD}';"
 
 sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='ambari'" | grep -q 1 || \
     sudo -u postgres psql -c "CREATE DATABASE ambari OWNER ambari;"
 
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ambari TO ambari;"
 
-# Update pg_hba.conf to allow password auth for local connections
+# Store password securely for ambari-server setup
+mkdir -p /etc/ambari-server
+echo "${AMBARI_DB_PASSWORD}" > "${AMBARI_DB_PASSWORD_FILE}"
+chmod 600 "${AMBARI_DB_PASSWORD_FILE}"
+
+# Update pg_hba.conf to allow scram-sha-256 auth for local connections
 PG_HBA=$(find /etc/postgresql -name pg_hba.conf | head -1)
 if [[ -n "${PG_HBA}" ]]; then
-    # Replace 'peer' with 'md5' for local connections
-    sed -i 's/^local\s\+all\s\+all\s\+peer/local   all             all                                     md5/' "${PG_HBA}"
+    sed -i 's/^local\s\+all\s\+all\s\+peer/local   all             all                                     scram-sha-256/' "${PG_HBA}"
     systemctl restart postgresql
 fi
 success "PostgreSQL database 'ambari' created."
@@ -143,7 +151,7 @@ success "PostgreSQL database 'ambari' created."
 info "Adding Ambari ${AMBARI_VERSION} repository..."
 
 # Add Ambari repo
-wget -nv "https://public-repo-1.hortonworks.com/ambari/ubuntu18/2.x/updates/${AMBARI_VERSION}/ambari.list" \
+wget -nv "https://public-repo-1.hortonworks.com/ambari/ubuntu22/2.x/updates/${AMBARI_VERSION}/ambari.list" \
     -O /etc/apt/sources.list.d/ambari.list
 
 # Import GPG key
@@ -169,13 +177,13 @@ ambari-server setup \
 # Run full setup with PostgreSQL as the backend database
 ambari-server setup \
     -s \
-    --java-home=/usr/lib/jvm/java-8-openjdk-amd64 \
+    --java-home=/usr/lib/jvm/java-11-openjdk-amd64 \
     --database=postgres \
     --databasehost=localhost \
     --databaseport=5432 \
     --databasename=ambari \
     --databaseusername=ambari \
-    --databasepassword=ambari
+    --databasepassword="${AMBARI_DB_PASSWORD}"
 
 success "Ambari server setup complete."
 

@@ -82,12 +82,12 @@ class AzureAutoscalerMaster(Script):
         log_file = os.path.join(params.autoscaler_log_dir, 'autoscaler.log')
 
         cmd = ('nohup python3 -u {daemon} --config {config} --port {port} '
-               '>> {log} 2>&1 & echo $! > {pid}').format(
+               '--pid-file {pid} >> {log} 2>&1 &').format(
             daemon=daemon_script,
             config=config_path,
             port=params.autoscaler_port,
-            log=log_file,
-            pid=params.autoscaler_pid_file)
+            pid=params.autoscaler_pid_file,
+            log=log_file)
 
         Execute(cmd, user=params.autoscaler_user, logoutput=True)
 
@@ -99,8 +99,16 @@ class AzureAutoscalerMaster(Script):
             with open(params.autoscaler_pid_file, 'r') as f:
                 pid = f.read().strip()
             if pid:
-                Execute('kill {0} || true'.format(pid), user=params.autoscaler_user)
-            os.remove(params.autoscaler_pid_file)
+                cmdline_file = '/proc/{0}/cmdline'.format(pid)
+                if os.path.exists(cmdline_file):
+                    with open(cmdline_file, 'r') as cf:
+                        cmdline = cf.read()
+                    if 'autoscaler_daemon' in cmdline:
+                        Execute('kill {0}'.format(pid), user=params.autoscaler_user)
+                    else:
+                        from resource_management.core.logger import Logger
+                        Logger.warning('PID %s does not belong to autoscaler daemon, skipping kill', pid)
+                os.remove(params.autoscaler_pid_file)
 
     def status(self, env):
         import params
@@ -117,41 +125,40 @@ class AzureAutoscalerMaster(Script):
         except Exception:
             return ''
 
+    def _api_call(self, params, method, path):
+        """Make an authenticated API call to the local autoscaler daemon."""
+        from resource_management.core.logger import Logger
+        try:
+            from urllib.request import urlopen, Request
+        except ImportError:
+            from urllib2 import urlopen, Request
+        token = self._read_api_token(params)
+        url = 'http://localhost:{port}{path}'.format(port=params.autoscaler_port, path=path)
+        req = Request(url, method=method, data=b'')
+        req.add_header('Authorization', 'Bearer {0}'.format(token))
+        response = urlopen(req, timeout=30)
+        result = response.read().decode()
+        Logger.info(result)
+
     def force_scale_out(self, env):
         import params
         env.set_params(params)
-        token = self._read_api_token(params)
-        Execute('curl -s -X POST -H "Authorization: Bearer {token}" '
-                'http://localhost:{port}/api/v1/scale/out'.format(
-                    token=token, port=params.autoscaler_port),
-                user=params.autoscaler_user, logoutput=True)
+        self._api_call(params, 'POST', '/api/v1/scale/out')
 
     def force_scale_in(self, env):
         import params
         env.set_params(params)
-        token = self._read_api_token(params)
-        Execute('curl -s -X POST -H "Authorization: Bearer {token}" '
-                'http://localhost:{port}/api/v1/scale/in'.format(
-                    token=token, port=params.autoscaler_port),
-                user=params.autoscaler_user, logoutput=True)
+        self._api_call(params, 'POST', '/api/v1/scale/in')
 
     def pause_autoscaling(self, env):
         import params
         env.set_params(params)
-        token = self._read_api_token(params)
-        Execute('curl -s -X POST -H "Authorization: Bearer {token}" '
-                'http://localhost:{port}/api/v1/pause'.format(
-                    token=token, port=params.autoscaler_port),
-                user=params.autoscaler_user, logoutput=True)
+        self._api_call(params, 'POST', '/api/v1/pause')
 
     def resume_autoscaling(self, env):
         import params
         env.set_params(params)
-        token = self._read_api_token(params)
-        Execute('curl -s -X POST -H "Authorization: Bearer {token}" '
-                'http://localhost:{port}/api/v1/resume'.format(
-                    token=token, port=params.autoscaler_port),
-                user=params.autoscaler_user, logoutput=True)
+        self._api_call(params, 'POST', '/api/v1/resume')
 
 
 if __name__ == '__main__':

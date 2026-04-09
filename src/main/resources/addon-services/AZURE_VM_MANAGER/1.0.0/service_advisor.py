@@ -104,6 +104,17 @@ class AzureVmManagerServiceAdvisor(service_advisor.ServiceAdvisor):
                 'config-name': 'azure.vm.pool.zk.count'
             })
 
+        # TLS warning
+        tls_enabled = props.get('azure-vm-manager-env', {}).get('vm_manager_tls_enabled', 'false')
+        if tls_enabled != 'true':
+            items.append({
+                'type': 'configuration', 'level': 'WARN',
+                'message': 'TLS is disabled for the VM Manager REST API. '
+                           'Strongly recommended for production deployments.',
+                'config-type': 'azure-vm-manager-env',
+                'config-name': 'vm_manager_tls_enabled'
+            })
+
         # Spot VM warning
         spot_enabled = pool.get('azure.vm.pool.worker.spot.enabled', 'false')
         if spot_enabled == 'true':

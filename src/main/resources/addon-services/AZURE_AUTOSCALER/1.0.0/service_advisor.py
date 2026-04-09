@@ -85,6 +85,18 @@ class AzureAutoscalerServiceAdvisor(service_advisor.ServiceAdvisor):
                 'config-name': 'autoscaler.cooldown.scale.in.seconds'
             })
 
+        # TLS warning
+        env = props.get('azure-autoscaler-env', {})
+        tls_enabled = env.get('autoscaler_tls_enabled', 'false')
+        if tls_enabled != 'true':
+            items.append({
+                'type': 'configuration', 'level': 'WARN',
+                'message': 'TLS is disabled for the Autoscaler REST API. '
+                           'Strongly recommended for production deployments.',
+                'config-type': 'azure-autoscaler-env',
+                'config-name': 'autoscaler_tls_enabled'
+            })
+
         return items
 
     def getServiceComponentLayoutValidations(self, services, hosts):

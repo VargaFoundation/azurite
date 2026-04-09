@@ -72,6 +72,13 @@
       "metadata": {
         "description": "URL to download the mpack tar.gz. Leave empty to skip mpack installation."
       }
+    },
+    "allowedSourceAddressPrefix": {
+      "type": "string",
+      "defaultValue": "VirtualNetwork",
+      "metadata": {
+        "description": "Source address prefix for management NSG rules (SSH, Ambari, HDFS, YARN). Use a CIDR range (e.g. '203.0.113.0/24') or 'VirtualNetwork'. Do NOT use '*' in production."
+      }
     }
   },
   "variables": {
@@ -84,8 +91,8 @@
     "subnetAddressPrefix": "10.0.1.0/24",
     "storageBlobDataContributorRoleId": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
     "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]",
-    "cloudInitHeadServer": "[concat('#cloud-config\npackage_update: true\npackage_upgrade: false\npackages:\n  - curl\n  - wget\n  - apt-transport-https\nruncmd:\n  # ---- Install Java 8 ----\n  - apt-get install -y openjdk-8-jdk\n  - export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64\n  - echo \"JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64\" >> /etc/environment\n  # ---- Install PostgreSQL and create ambari database ----\n  - apt-get install -y postgresql postgresql-contrib\n  - systemctl enable postgresql\n  - systemctl start postgresql\n  - sudo -u postgres psql -c \"CREATE DATABASE ambari;\"\n  - sudo -u postgres psql -c \"CREATE USER ambari WITH PASSWORD ''ambari'';\"\n  - sudo -u postgres psql -c \"GRANT ALL PRIVILEGES ON DATABASE ambari TO ambari;\"\n  - sed -i ''s/^local\\s\\+all\\s\\+all\\s\\+peer/local all all md5/'' /etc/postgresql/*/main/pg_hba.conf\n  - systemctl restart postgresql\n  # ---- Install Ambari server and agent ----\n  - wget -nv https://public-repo-1.hortonworks.com/ambari/ubuntu18/2.x/updates/', parameters('ambariVersion'), '/ambari.list -O /etc/apt/sources.list.d/ambari.list\n  - apt-key adv --recv-keys --keyserver keyserver.ubuntu.com B9733A7A07513CAD\n  - apt-get update\n  - apt-get install -y ambari-server ambari-agent\n  # ---- Setup Ambari server with PostgreSQL ----\n  - ambari-server setup --jdbc-db=postgres --jdbc-driver=/usr/share/java/postgresql.jar -s\n  - ambari-server setup -s --java-home=/usr/lib/jvm/java-8-openjdk-amd64 --database=postgres --databasehost=localhost --databaseport=5432 --databasename=ambari --databaseusername=ambari --databasepassword=ambari\n  # ---- Install mpack if URL provided ----\n', if(empty(parameters('mpackUrl')), '  - echo \"No mpack URL provided, skipping mpack installation.\"\n', concat('  - wget -nv \"', parameters('mpackUrl'), '\" -O /tmp/azurite-mpack.tar.gz\n  - ambari-server install-mpack --mpack=/tmp/azurite-mpack.tar.gz --verbose\n')), '  # ---- Start services ----\n  - ambari-server start\n  - sed -i \"s/hostname=localhost/hostname=', parameters('clusterName'), '-head-0/\" /etc/ambari-agent/conf/ambari-agent.ini\n  - ambari-agent start\n')]",
-    "cloudInitAgent": "[concat('#cloud-config\npackage_update: true\npackage_upgrade: false\npackages:\n  - curl\n  - wget\n  - apt-transport-https\nruncmd:\n  # ---- Install Java 8 ----\n  - apt-get install -y openjdk-8-jdk\n  - export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64\n  - echo \"JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64\" >> /etc/environment\n  # ---- Install Ambari agent ----\n  - wget -nv https://public-repo-1.hortonworks.com/ambari/ubuntu18/2.x/updates/', parameters('ambariVersion'), '/ambari.list -O /etc/apt/sources.list.d/ambari.list\n  - apt-key adv --recv-keys --keyserver keyserver.ubuntu.com B9733A7A07513CAD\n  - apt-get update\n  - apt-get install -y ambari-agent\n  # ---- Configure agent to point to head-0 ----\n  - sed -i \"s/hostname=localhost/hostname=', parameters('clusterName'), '-head-0/\" /etc/ambari-agent/conf/ambari-agent.ini\n  # ---- Start agent ----\n  - ambari-agent start\n')]",
+    "cloudInitHeadServer": "[concat('#cloud-config\npackage_update: true\npackage_upgrade: false\npackages:\n  - curl\n  - wget\n  - apt-transport-https\nruncmd:\n  # ---- Install Java 8 ----\n  - apt-get install -y openjdk-11-jdk\n  - export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64\n  - echo \"JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64\" >> /etc/environment\n  # ---- Install PostgreSQL and create ambari database ----\n  - apt-get install -y postgresql postgresql-contrib\n  - systemctl enable postgresql\n  - systemctl start postgresql\n  - export AMBARI_DB_PW=$(openssl rand -base64 24 | tr -dc A-Za-z0-9 | head -c 32)\n  - sudo -u postgres psql -c \"CREATE DATABASE ambari;\"\n  - sudo -u postgres psql -c \"CREATE USER ambari WITH PASSWORD ''$AMBARI_DB_PW'';\"\n  - sudo -u postgres psql -c \"GRANT ALL PRIVILEGES ON DATABASE ambari TO ambari;\"\n  - mkdir -p /etc/ambari-server && echo \"$AMBARI_DB_PW\" > /etc/ambari-server/.db-password && chmod 600 /etc/ambari-server/.db-password\n  - sed -i ''s/^local\\s\\+all\\s\\+all\\s\\+peer/local all all scram-sha-256/'' /etc/postgresql/*/main/pg_hba.conf\n  - systemctl restart postgresql\n  # ---- Install Ambari server and agent ----\n  - wget -nv https://public-repo-1.hortonworks.com/ambari/ubuntu22/2.x/updates/', parameters('ambariVersion'), '/ambari.list -O /etc/apt/sources.list.d/ambari.list\n  - apt-key adv --recv-keys --keyserver keyserver.ubuntu.com B9733A7A07513CAD\n  - apt-get update\n  - apt-get install -y ambari-server ambari-agent\n  # ---- Setup Ambari server with PostgreSQL ----\n  - ambari-server setup --jdbc-db=postgres --jdbc-driver=/usr/share/java/postgresql.jar -s\n  - ambari-server setup -s --java-home=/usr/lib/jvm/java-11-openjdk-amd64 --database=postgres --databasehost=localhost --databaseport=5432 --databasename=ambari --databaseusername=ambari --databasepassword=$AMBARI_DB_PW\n  # ---- Install mpack if URL provided ----\n', if(empty(parameters('mpackUrl')), '  - echo \"No mpack URL provided, skipping mpack installation.\"\n', concat('  - wget -nv \"', parameters('mpackUrl'), '\" -O /tmp/azurite-mpack.tar.gz\n  - ambari-server install-mpack --mpack=/tmp/azurite-mpack.tar.gz --verbose\n')), '  # ---- Start services ----\n  - ambari-server start\n  - sed -i \"s/hostname=localhost/hostname=', parameters('clusterName'), '-head-0/\" /etc/ambari-agent/conf/ambari-agent.ini\n  - ambari-agent start\n')]",
+    "cloudInitAgent": "[concat('#cloud-config\npackage_update: true\npackage_upgrade: false\npackages:\n  - curl\n  - wget\n  - apt-transport-https\nruncmd:\n  # ---- Install Java 8 ----\n  - apt-get install -y openjdk-11-jdk\n  - export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64\n  - echo \"JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64\" >> /etc/environment\n  # ---- Install Ambari agent ----\n  - wget -nv https://public-repo-1.hortonworks.com/ambari/ubuntu22/2.x/updates/', parameters('ambariVersion'), '/ambari.list -O /etc/apt/sources.list.d/ambari.list\n  - apt-key adv --recv-keys --keyserver keyserver.ubuntu.com B9733A7A07513CAD\n  - apt-get update\n  - apt-get install -y ambari-agent\n  # ---- Configure agent to point to head-0 ----\n  - sed -i \"s/hostname=localhost/hostname=', parameters('clusterName'), '-head-0/\" /etc/ambari-agent/conf/ambari-agent.ini\n  # ---- Start agent ----\n  - ambari-agent start\n')]",
     "vmTags": {
       "managed-by": "ambari-azure-mpack",
       "cluster": "[parameters('clusterName')]"
@@ -109,7 +116,7 @@
               "protocol": "Tcp",
               "sourcePortRange": "*",
               "destinationPortRange": "22",
-              "sourceAddressPrefix": "*",
+              "sourceAddressPrefix": "[parameters('allowedSourceAddressPrefix')]",
               "destinationAddressPrefix": "*"
             }
           },
@@ -122,7 +129,7 @@
               "protocol": "Tcp",
               "sourcePortRange": "*",
               "destinationPortRange": "8080",
-              "sourceAddressPrefix": "*",
+              "sourceAddressPrefix": "[parameters('allowedSourceAddressPrefix')]",
               "destinationAddressPrefix": "*"
             }
           },
@@ -135,7 +142,7 @@
               "protocol": "Tcp",
               "sourcePortRange": "*",
               "destinationPortRange": "8443",
-              "sourceAddressPrefix": "*",
+              "sourceAddressPrefix": "[parameters('allowedSourceAddressPrefix')]",
               "destinationAddressPrefix": "*"
             }
           },
@@ -161,7 +168,7 @@
               "protocol": "Tcp",
               "sourcePortRange": "*",
               "destinationPortRange": "50070",
-              "sourceAddressPrefix": "*",
+              "sourceAddressPrefix": "[parameters('allowedSourceAddressPrefix')]",
               "destinationAddressPrefix": "*"
             }
           },
@@ -174,7 +181,7 @@
               "protocol": "Tcp",
               "sourcePortRange": "*",
               "destinationPortRange": "8088",
-              "sourceAddressPrefix": "*",
+              "sourceAddressPrefix": "[parameters('allowedSourceAddressPrefix')]",
               "destinationAddressPrefix": "*"
             }
           },
@@ -389,7 +396,7 @@
           "imageReference": {
             "publisher": "Canonical",
             "offer": "UbuntuServer",
-            "sku": "18.04-LTS",
+            "sku": "22_04-lts-gen2",
             "version": "latest"
           },
           "osDisk": {
@@ -449,7 +456,7 @@
           "imageReference": {
             "publisher": "Canonical",
             "offer": "UbuntuServer",
-            "sku": "18.04-LTS",
+            "sku": "22_04-lts-gen2",
             "version": "latest"
           },
           "osDisk": {
@@ -560,7 +567,7 @@
           "imageReference": {
             "publisher": "Canonical",
             "offer": "UbuntuServer",
-            "sku": "18.04-LTS",
+            "sku": "22_04-lts-gen2",
             "version": "latest"
           },
           "osDisk": {
@@ -675,7 +682,7 @@
           "imageReference": {
             "publisher": "Canonical",
             "offer": "UbuntuServer",
-            "sku": "18.04-LTS",
+            "sku": "22_04-lts-gen2",
             "version": "latest"
           },
           "osDisk": {

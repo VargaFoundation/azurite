@@ -18,6 +18,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 'addon-services', 'AZURE_AUTOSCALER', '1.0.0', 'package', 'files'))
 from yarn_decommissioner import YarnDecommissioner
 
+
+def _mock_response(read_value=None):
+    """Create a MagicMock that works as a context manager (for `with urlopen() as resp:`)."""
+    resp = MagicMock()
+    if read_value is not None:
+        resp.read.return_value = read_value
+    resp.__enter__ = MagicMock(return_value=resp)
+    resp.__exit__ = MagicMock(return_value=False)
+    return resp
+
 _YD_MODULE = 'yarn_decommissioner'
 
 
@@ -55,18 +65,16 @@ class TestYarnDecommissioner(unittest.TestCase):
         ])
         poll_index = [0]  # mutable counter in closure
 
-        def side_effect(req, timeout=10):
+        def side_effect(req, **kwargs):
             url = req.get_full_url() if hasattr(req, 'get_full_url') else req
-            mock_resp = MagicMock()
 
             # Node list requests
             if url.endswith('/ws/v1/cluster/nodes'):
-                mock_resp.read.return_value = nodes_payload
-                return mock_resp
+                return _mock_response(nodes_payload)
 
             # State change (PUT) requests -- just succeed
             if '/state' in url:
-                return mock_resp
+                return _mock_response()
 
             # Single-node detail requests
             for host in host_containers_sequence[0].keys():
@@ -74,11 +82,9 @@ class TestYarnDecommissioner(unittest.TestCase):
                 if node_id in url:
                     idx = min(poll_index[0], len(host_containers_sequence) - 1)
                     containers = host_containers_sequence[idx].get(host, 0)
-                    mock_resp.read.return_value = _node_detail_response(containers)
-                    return mock_resp
+                    return _mock_response(_node_detail_response(containers))
 
-            mock_resp.read.return_value = _node_detail_response(0)
-            return mock_resp
+            return _mock_response(_node_detail_response(0))
 
         def advance_poll():
             poll_index[0] += 1
@@ -102,8 +108,8 @@ class TestYarnDecommissioner(unittest.TestCase):
         call_count = [0]
         original_side_effect = side_effect
 
-        def counting_side_effect(req, timeout=10):
-            result = original_side_effect(req, timeout)
+        def counting_side_effect(req, **kwargs):
+            result = original_side_effect(req, **kwargs)
             call_count[0] += 1
             return result
 
@@ -130,24 +136,19 @@ class TestYarnDecommissioner(unittest.TestCase):
             {'nodeHostName': 'worker1', 'id': 'worker1:8041'},
         ])
 
-        def urlopen_side_effect(req, timeout=10):
+        def urlopen_side_effect(req, **kwargs):
             url = req.get_full_url() if hasattr(req, 'get_full_url') else req
-            mock_resp = MagicMock()
 
             if url.endswith('/ws/v1/cluster/nodes'):
-                mock_resp.read.return_value = nodes_payload
-                return mock_resp
+                return _mock_response(nodes_payload)
 
             if '/state' in url:
-                return mock_resp
+                return _mock_response()
 
             if 'worker1:8041' in url and '/state' not in url:
-                # Always report 5 containers -- node never drains
-                mock_resp.read.return_value = _node_detail_response(5)
-                return mock_resp
+                return _mock_response(_node_detail_response(5))
 
-            mock_resp.read.return_value = _node_detail_response(0)
-            return mock_resp
+            return _mock_response(_node_detail_response(0))
 
         mock_urlopen.side_effect = urlopen_side_effect
 
@@ -164,7 +165,8 @@ class TestYarnDecommissioner(unittest.TestCase):
 
         # Verify that a PUT with DECOMMISSIONED state was attempted (force)
         put_calls = [c for c in mock_urlopen.call_args_list
-                     if hasattr(c[0][0], 'data') and c[0][0].data is not None
+                     if len(c[0]) > 0 and hasattr(c[0][0], 'data')
+                     and c[0][0].data is not None
                      and b'DECOMMISSIONED' in c[0][0].data]
         self.assertTrue(len(put_calls) > 0,
                         'Force decommission (DECOMMISSIONED state) should have been called')
@@ -182,20 +184,13 @@ class TestYarnDecommissioner(unittest.TestCase):
             {'nodeHostName': 'worker1', 'id': 'worker1:8041'},
         ])
 
-        def urlopen_side_effect(req, timeout=10):
+        def urlopen_side_effect(req, **kwargs):
             url = req.get_full_url() if hasattr(req, 'get_full_url') else req
-            mock_resp = MagicMock()
-
             if url.endswith('/ws/v1/cluster/nodes'):
-                mock_resp.read.return_value = nodes_payload
-                return mock_resp
-
+                return _mock_response(nodes_payload)
             if 'worker1:8041' in url:
-                mock_resp.read.return_value = _node_detail_response(0)
-                return mock_resp
-
-            mock_resp.read.return_value = _node_detail_response(0)
-            return mock_resp
+                return _mock_response(_node_detail_response(0))
+            return _mock_response(_node_detail_response(0))
 
         mock_urlopen.side_effect = urlopen_side_effect
 
@@ -210,20 +205,13 @@ class TestYarnDecommissioner(unittest.TestCase):
             {'nodeHostName': 'worker1', 'id': 'worker1:8041'},
         ])
 
-        def urlopen_side_effect(req, timeout=10):
+        def urlopen_side_effect(req, **kwargs):
             url = req.get_full_url() if hasattr(req, 'get_full_url') else req
-            mock_resp = MagicMock()
-
             if url.endswith('/ws/v1/cluster/nodes'):
-                mock_resp.read.return_value = nodes_payload
-                return mock_resp
-
+                return _mock_response(nodes_payload)
             if 'worker1:8041' in url:
-                mock_resp.read.return_value = _node_detail_response(7)
-                return mock_resp
-
-            mock_resp.read.return_value = _node_detail_response(0)
-            return mock_resp
+                return _mock_response(_node_detail_response(7))
+            return _mock_response(_node_detail_response(0))
 
         mock_urlopen.side_effect = urlopen_side_effect
 

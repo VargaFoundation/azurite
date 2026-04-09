@@ -124,14 +124,14 @@ class AzureVmManagerMaster(Script):
         config_path = os.path.join(params.vm_manager_data_dir, 'vm_manager_config.json')
         log_file = os.path.join(params.vm_manager_log_dir, 'vm_manager.log')
 
-        # Start the VM Manager REST daemon
+        # Start the VM Manager REST daemon (PID written by the daemon itself)
         cmd = ('nohup python3 -u {daemon} --config {config} --port {port} '
-               '>> {log} 2>&1 & echo $! > {pid}').format(
+               '--pid-file {pid} >> {log} 2>&1 &').format(
             daemon=daemon_script,
             config=config_path,
             port=params.vm_manager_port,
-            log=log_file,
-            pid=params.vm_manager_pid_file)
+            pid=params.vm_manager_pid_file,
+            log=log_file)
 
         Execute(cmd,
                 user=params.vm_manager_user,
@@ -145,8 +145,17 @@ class AzureVmManagerMaster(Script):
             with open(params.vm_manager_pid_file, 'r') as f:
                 pid = f.read().strip()
             if pid:
-                Execute('kill {0} || true'.format(pid), user=params.vm_manager_user)
-            os.remove(params.vm_manager_pid_file)
+                # Verify the PID belongs to our daemon before killing
+                cmdline_file = '/proc/{0}/cmdline'.format(pid)
+                if os.path.exists(cmdline_file):
+                    with open(cmdline_file, 'r') as cf:
+                        cmdline = cf.read()
+                    if 'azure_vm_operations' in cmdline:
+                        Execute('kill {0}'.format(pid), user=params.vm_manager_user)
+                    else:
+                        from resource_management.core.logger import Logger
+                        Logger.warning('PID %s does not belong to VM Manager daemon, skipping kill', pid)
+                os.remove(params.vm_manager_pid_file)
 
     def status(self, env):
         import params
@@ -163,6 +172,21 @@ class AzureVmManagerMaster(Script):
         except Exception:
             return ''
 
+    def _api_call(self, params, method, path):
+        """Make an authenticated API call to the local VM Manager daemon."""
+        from resource_management.core.logger import Logger
+        try:
+            from urllib.request import urlopen, Request
+        except ImportError:
+            from urllib2 import urlopen, Request
+        token = self._read_api_token(params)
+        url = 'http://localhost:{port}{path}'.format(port=params.vm_manager_port, path=path)
+        req = Request(url, method=method, data=b'' if method == 'POST' else None)
+        req.add_header('Authorization', 'Bearer {0}'.format(token))
+        response = urlopen(req, timeout=30)
+        result = response.read().decode()
+        Logger.info(result)
+
     def provision_workers(self, env):
         """Custom command: provision additional worker VMs."""
         import params
@@ -171,12 +195,7 @@ class AzureVmManagerMaster(Script):
         if params.vm_manager_mode != 'managed':
             raise Fail('Cannot provision workers: VM Manager is in "existing" mode.')
 
-        token = self._read_api_token(params)
-        Execute('curl -s -X POST -H "Authorization: Bearer {token}" '
-                'http://localhost:{port}/api/v1/workers/provision'.format(
-                    token=token, port=params.vm_manager_port),
-                user=params.vm_manager_user,
-                logoutput=True)
+        self._api_call(params, 'POST', '/api/v1/workers/provision')
 
     def decommission_workers(self, env):
         """Custom command: decommission and delete worker VMs."""
@@ -186,24 +205,14 @@ class AzureVmManagerMaster(Script):
         if params.vm_manager_mode != 'managed':
             raise Fail('Cannot decommission workers: VM Manager is in "existing" mode.')
 
-        token = self._read_api_token(params)
-        Execute('curl -s -X POST -H "Authorization: Bearer {token}" '
-                'http://localhost:{port}/api/v1/workers/decommission'.format(
-                    token=token, port=params.vm_manager_port),
-                user=params.vm_manager_user,
-                logoutput=True)
+        self._api_call(params, 'POST', '/api/v1/workers/decommission')
 
     def list_vms(self, env):
         """Custom command: list all managed VMs."""
         import params
         env.set_params(params)
 
-        token = self._read_api_token(params)
-        Execute('curl -s -H "Authorization: Bearer {token}" '
-                'http://localhost:{port}/api/v1/vms'.format(
-                    token=token, port=params.vm_manager_port),
-                user=params.vm_manager_user,
-                logoutput=True)
+        self._api_call(params, 'GET', '/api/v1/vms')
 
 
 if __name__ == '__main__':

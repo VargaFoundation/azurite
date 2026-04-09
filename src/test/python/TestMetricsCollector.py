@@ -55,6 +55,8 @@ class TestMetricsCollector(unittest.TestCase):
         """Valid YARN JSON response should be parsed into the expected dict keys."""
         mock_response = MagicMock()
         mock_response.read.return_value = _yarn_metrics_response()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
         mock_urlopen.return_value = mock_response
 
         collector = MetricsCollector('http://rm-host:8088')
