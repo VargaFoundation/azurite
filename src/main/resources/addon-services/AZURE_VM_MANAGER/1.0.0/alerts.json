@@ -43,6 +43,19 @@
           "path": "AZURE_VM_MANAGER/1.0.0/package/scripts/alerts/check_azure_arm_api.py",
           "parameters": []
         }
+      },
+      {
+        "name": "azure_budget_exceeded",
+        "label": "Azure Daily Budget Exceeded",
+        "description": "Alerts when estimated daily cost exceeds the configured budget limit.",
+        "interval": 15,
+        "scope": "SERVICE",
+        "enabled": true,
+        "source": {
+          "type": "SCRIPT",
+          "path": "AZURE_VM_MANAGER/1.0.0/package/scripts/alerts/check_budget_exceeded.py",
+          "parameters": []
+        }
       }
     ]
   }

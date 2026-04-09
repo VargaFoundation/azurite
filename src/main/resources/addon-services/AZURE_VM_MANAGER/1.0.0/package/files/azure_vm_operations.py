@@ -162,7 +162,7 @@ class AzureVmOperations:
         logger.info('Creating NIC %s', nic_name)
         nic_poller = self._network_client.network_interfaces.begin_create_or_update(
             self.resource_group, nic_name, nic_params)
-        nic = nic_poller.result()
+        nic = nic_poller.result(timeout=300)
 
         # Build VM parameters
         admin_cfg = self.config.get('admin', {})
@@ -235,7 +235,7 @@ class AzureVmOperations:
         logger.info('Creating VM %s (size=%s, role=%s, spot=%s)', vm_name, vm_size, role, spot)
         vm_poller = self._compute_client.virtual_machines.begin_create_or_update(
             self.resource_group, vm_name, vm_params)
-        vm = vm_poller.result()
+        vm = vm_poller.result(timeout=900)
 
         # Update inventory
         with self._inventory_lock:
@@ -273,7 +273,7 @@ class AzureVmOperations:
         # Delete VM
         try:
             vm_poller = self._compute_client.virtual_machines.begin_delete(self.resource_group, vm_name)
-            vm_poller.result()
+            vm_poller.result(timeout=600)
         except Exception as e:
             logger.warning('Failed to delete VM %s: %s', vm_name, e)
             all_success = False
@@ -282,7 +282,7 @@ class AzureVmOperations:
         nic_name = '{0}-nic'.format(vm_name)
         try:
             nic_poller = self._network_client.network_interfaces.begin_delete(self.resource_group, nic_name)
-            nic_poller.result()
+            nic_poller.result(timeout=300)
         except Exception as e:
             logger.warning('Failed to delete NIC %s: %s', nic_name, e)
             all_success = False
@@ -291,7 +291,7 @@ class AzureVmOperations:
         os_disk_name = '{0}-osdisk'.format(vm_name)
         try:
             disk_poller = self._compute_client.disks.begin_delete(self.resource_group, os_disk_name)
-            disk_poller.result()
+            disk_poller.result(timeout=300)
         except Exception as e:
             logger.warning('Failed to delete OS disk %s: %s', os_disk_name, e)
             all_success = False
@@ -300,7 +300,7 @@ class AzureVmOperations:
         for disk in vm.storage_profile.data_disks or []:
             try:
                 disk_poller = self._compute_client.disks.begin_delete(self.resource_group, disk.name)
-                disk_poller.result()
+                disk_poller.result(timeout=300)
             except Exception as e:
                 logger.warning('Failed to delete data disk %s: %s', disk.name, e)
                 all_success = False

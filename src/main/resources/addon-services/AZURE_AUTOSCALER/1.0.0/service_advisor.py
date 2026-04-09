@@ -85,6 +85,37 @@ class AzureAutoscalerServiceAdvisor(service_advisor.ServiceAdvisor):
                 'config-name': 'autoscaler.cooldown.scale.in.seconds'
             })
 
+        # Worker count bounds
+        schedule_site = props.get('azure-autoscaler-schedule-site', {})
+        rules_str = schedule_site.get('schedule.rules', '[]')
+        try:
+            import json
+            rules = json.loads(rules_str)
+            for i, rule in enumerate(rules):
+                cron = rule.get('cron', '')
+                if cron and len(cron.split()) != 5:
+                    items.append({
+                        'type': 'configuration', 'level': 'ERROR',
+                        'message': 'Schedule rule #{0}: cron expression must have 5 fields '
+                                   '(minute hour dom month dow), got: "{1}"'.format(i + 1, cron),
+                        'config-type': 'azure-autoscaler-schedule-site',
+                        'config-name': 'schedule.rules'
+                    })
+                if not rule.get('target_count'):
+                    items.append({
+                        'type': 'configuration', 'level': 'ERROR',
+                        'message': 'Schedule rule #{0}: target_count is required.'.format(i + 1),
+                        'config-type': 'azure-autoscaler-schedule-site',
+                        'config-name': 'schedule.rules'
+                    })
+        except (ValueError, TypeError):
+            items.append({
+                'type': 'configuration', 'level': 'ERROR',
+                'message': 'schedule.rules must be valid JSON array.',
+                'config-type': 'azure-autoscaler-schedule-site',
+                'config-name': 'schedule.rules'
+            })
+
         # TLS warning
         env = props.get('azure-autoscaler-env', {})
         tls_enabled = env.get('autoscaler_tls_enabled', 'false')

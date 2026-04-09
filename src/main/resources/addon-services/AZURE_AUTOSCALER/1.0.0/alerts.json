@@ -43,6 +43,19 @@
           "path": "AZURE_AUTOSCALER/1.0.0/package/scripts/alerts/check_scaling_failures.py",
           "parameters": []
         }
+      },
+      {
+        "name": "scaling_oscillation",
+        "label": "Scaling Oscillation Detection",
+        "description": "Warns when rapid scale-out/scale-in cycles indicate misconfigured thresholds.",
+        "interval": 10,
+        "scope": "SERVICE",
+        "enabled": true,
+        "source": {
+          "type": "SCRIPT",
+          "path": "AZURE_AUTOSCALER/1.0.0/package/scripts/alerts/check_scaling_oscillation.py",
+          "parameters": []
+        }
       }
     ]
   }

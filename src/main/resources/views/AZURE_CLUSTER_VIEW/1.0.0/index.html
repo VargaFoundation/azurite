@@ -189,7 +189,7 @@
 
     function renderVmTable(vms) {
       var tbody = document.getElementById('vm-table-body');
-      tbody.innerHTML = '';
+      while (tbody.firstChild) { tbody.removeChild(tbody.firstChild); }
       if (!vms.length) {
         var row = document.createElement('tr');
         var cell = document.createElement('td');

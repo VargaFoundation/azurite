@@ -477,34 +477,13 @@
       }
     },
     {
-      "type": "Microsoft.Network/publicIPAddresses",
-      "apiVersion": "2023-05-01",
-      "name": "[concat(parameters('clusterName'), '-zk-', copyIndex(), '-pip')]",
-      "location": "[parameters('location')]",
-      "tags": "[variables('vmTags')]",
-      "sku": {
-        "name": "Standard"
-      },
-      "properties": {
-        "publicIPAllocationMethod": "Static",
-        "dnsSettings": {
-          "domainNameLabel": "[concat(parameters('clusterName'), '-zk-', copyIndex())]"
-        }
-      },
-      "copy": {
-        "name": "zkPipCopy",
-        "count": 3
-      }
-    },
-    {
       "type": "Microsoft.Network/networkInterfaces",
       "apiVersion": "2023-05-01",
       "name": "[concat(parameters('clusterName'), '-zk-', copyIndex(), '-nic')]",
       "location": "[parameters('location')]",
       "tags": "[variables('vmTags')]",
       "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
-        "zkPipCopy"
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
       ],
       "properties": {
         "ipConfigurations": [
@@ -514,9 +493,6 @@
               "privateIPAllocationMethod": "Dynamic",
               "subnet": {
                 "id": "[variables('subnetRef')]"
-              },
-              "publicIPAddress": {
-                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-zk-', copyIndex(), '-pip'))]"
               }
             }
           }
@@ -592,34 +568,13 @@
       }
     },
     {
-      "type": "Microsoft.Network/publicIPAddresses",
-      "apiVersion": "2023-05-01",
-      "name": "[concat(parameters('clusterName'), '-worker-', copyIndex(), '-pip')]",
-      "location": "[parameters('location')]",
-      "tags": "[variables('vmTags')]",
-      "sku": {
-        "name": "Standard"
-      },
-      "properties": {
-        "publicIPAllocationMethod": "Static",
-        "dnsSettings": {
-          "domainNameLabel": "[concat(parameters('clusterName'), '-worker-', copyIndex())]"
-        }
-      },
-      "copy": {
-        "name": "workerPipCopy",
-        "count": "[parameters('workerCount')]"
-      }
-    },
-    {
       "type": "Microsoft.Network/networkInterfaces",
       "apiVersion": "2023-05-01",
       "name": "[concat(parameters('clusterName'), '-worker-', copyIndex(), '-nic')]",
       "location": "[parameters('location')]",
       "tags": "[variables('vmTags')]",
       "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
-        "workerPipCopy"
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
       ],
       "properties": {
         "ipConfigurations": [
@@ -629,9 +584,6 @@
               "privateIPAllocationMethod": "Dynamic",
               "subnet": {
                 "id": "[variables('subnetRef')]"
-              },
-              "publicIPAddress": {
-                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-worker-', copyIndex(), '-pip'))]"
               }
             }
           }
