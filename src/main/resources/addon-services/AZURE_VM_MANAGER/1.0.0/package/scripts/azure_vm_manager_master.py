@@ -73,6 +73,9 @@ class AzureVmManagerMaster(Script):
             'ambari_server_url': params.vm_ambari_server_url,
             'tags': params.vm_tags,
             'availability_zone': params.vm_availability_zone,
+            'proximity_placement_group': params.vm_proximity_placement_group,
+            'custom_image_id': params.vm_custom_image_id,
+            'custom_cloud_init': params.vm_custom_cloud_init,
             'pools': {
                 'head': {
                     'size': params.head_size,
@@ -95,6 +98,9 @@ class AzureVmManagerMaster(Script):
                     'secondary_sizes': params.worker_secondary_sizes,
                     'spot_enabled': params.worker_spot_enabled,
                     'spot_max_price': params.worker_spot_max_price,
+                    'data_disk_type': params.worker_data_disk_type,
+                    'accelerated_networking': params.worker_accelerated_networking,
+                    'ephemeral_os_disk': params.worker_ephemeral_os_disk,
                 },
                 'zookeeper': {
                     'size': params.zk_size,

@@ -21,12 +21,15 @@ def execute(configurations={}, parameters={}, host_name=None):
         backend = configurations.get('{{azure-cloud-env/azure_storage_backend}}', 'hdfs')
         account = configurations.get('{{azure-storage-site/azure.storage.account.name}}', '')
         container = configurations.get('{{azure-storage-site/azure.storage.container.name}}', '')
+        endpoint_suffix = configurations.get('{{azure-storage-site/azure.storage.endpoint.suffix}}', 'core.windows.net')
 
         if backend == 'adls_gen2' and account and container:
-            fqdn = '{0}.dfs.core.windows.net'.format(account)
-            uri = 'abfs://{0}@{1}/'.format(container, fqdn)
+            fqdn = '{0}.dfs.{1}'.format(account, endpoint_suffix)
+            adls_secure = configurations.get('{{azure-storage-site/azure.adls.secure.mode}}', 'false')
+            scheme = 'abfss' if adls_secure == 'true' else 'abfs'
+            uri = '{0}://{1}@{2}/'.format(scheme, container, fqdn)
         elif backend == 'wasb' and account and container:
-            fqdn = '{0}.blob.core.windows.net'.format(account)
+            fqdn = '{0}.blob.{1}'.format(account, endpoint_suffix)
             uri = 'wasbs://{0}@{1}/'.format(container, fqdn)
         elif backend == 'hdfs':
             uri = '/'

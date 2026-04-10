@@ -342,6 +342,143 @@ class TestCrossServiceRecommendations(unittest.TestCase):
         self.assertEqual(yarn_site.get('yarn.nodemanager.remote-app-log-dir'), '/app-logs')
 
 
+class TestSovereignCloudAndSecureMode(unittest.TestCase):
+    """Tests for sovereign cloud endpoint suffix, ADLS secure mode, tuning and trash."""
+
+    def setUp(self):
+        self.advisor = AzureHadoopCloudServiceAdvisor()
+
+    def test_fs_default_fs_adls_secure_mode(self):
+        services = _build_services(
+            cloud_env={'azure_storage_backend': 'adls_gen2'},
+            storage_site={
+                'azure.storage.account.name': 'myaccount',
+                'azure.storage.container.name': 'mycontainer',
+                'azure.storage.auth.type': 'managed_identity',
+                'azure.adls.secure.mode': 'true',
+            },
+        )
+        configurations = {}
+        self.advisor.getServiceConfigurationRecommendations(configurations, {}, services, {})
+        core_site = configurations.get('core-site', {}).get('properties', {})
+        self.assertEqual(
+            core_site.get('fs.defaultFS'),
+            'abfss://mycontainer@myaccount.dfs.core.windows.net/'
+        )
+
+    def test_fs_default_fs_sovereign_cloud_gov(self):
+        services = _build_services(
+            cloud_env={'azure_storage_backend': 'adls_gen2'},
+            storage_site={
+                'azure.storage.account.name': 'govaccount',
+                'azure.storage.container.name': 'govcontainer',
+                'azure.storage.auth.type': 'managed_identity',
+                'azure.storage.endpoint.suffix': 'core.usgovcloudapi.net',
+            },
+        )
+        configurations = {}
+        self.advisor.getServiceConfigurationRecommendations(configurations, {}, services, {})
+        core_site = configurations.get('core-site', {}).get('properties', {})
+        self.assertEqual(
+            core_site.get('fs.defaultFS'),
+            'abfs://govcontainer@govaccount.dfs.core.usgovcloudapi.net/'
+        )
+
+    def test_fs_default_fs_sovereign_cloud_china(self):
+        services = _build_services(
+            cloud_env={'azure_storage_backend': 'wasb'},
+            storage_site={
+                'azure.storage.account.name': 'cnaccount',
+                'azure.storage.container.name': 'cncontainer',
+                'azure.storage.auth.type': 'storage_key',
+                'azure.storage.account.key': 'somekey',
+                'azure.wasb.secure.mode': 'true',
+                'azure.storage.endpoint.suffix': 'core.chinacloudapi.cn',
+            },
+        )
+        configurations = {}
+        self.advisor.getServiceConfigurationRecommendations(configurations, {}, services, {})
+        core_site = configurations.get('core-site', {}).get('properties', {})
+        self.assertEqual(
+            core_site.get('fs.defaultFS'),
+            'wasbs://cncontainer@cnaccount.blob.core.chinacloudapi.cn/'
+        )
+
+    def test_abfs_tuning_defaults_injected(self):
+        services = _build_services(
+            cloud_env={'azure_storage_backend': 'adls_gen2'},
+            storage_site={
+                'azure.storage.account.name': 'myaccount',
+                'azure.storage.container.name': 'mycontainer',
+                'azure.storage.auth.type': 'managed_identity',
+            },
+        )
+        configurations = {}
+        self.advisor.getServiceConfigurationRecommendations(configurations, {}, services, {})
+        core_site = configurations.get('core-site', {}).get('properties', {})
+        self.assertEqual(core_site.get('fs.azure.threads.max'), '16')
+        self.assertEqual(core_site.get('fs.azure.enable.autothrottling'), 'true')
+        self.assertEqual(core_site.get('fs.azure.readaheadqueue.depth'), '2')
+
+    def test_abfs_tuning_not_injected_for_hdfs(self):
+        services = _build_services(
+            cloud_env={'azure_storage_backend': 'hdfs'},
+            storage_site={'azure.storage.account.name': '', 'azure.storage.container.name': ''},
+        )
+        configurations = {}
+        self.advisor.getServiceConfigurationRecommendations(configurations, {}, services, {})
+        core_site = configurations.get('core-site', {}).get('properties', {})
+        self.assertNotIn('fs.azure.threads.max', core_site)
+
+    def test_trash_defaults_injected(self):
+        services = _build_services(
+            cloud_env={'azure_storage_backend': 'adls_gen2'},
+            storage_site={
+                'azure.storage.account.name': 'myaccount',
+                'azure.storage.container.name': 'mycontainer',
+                'azure.storage.auth.type': 'managed_identity',
+            },
+        )
+        configurations = {}
+        self.advisor.getServiceConfigurationRecommendations(configurations, {}, services, {})
+        core_site = configurations.get('core-site', {}).get('properties', {})
+        self.assertEqual(core_site.get('fs.trash.interval'), '1440')
+        self.assertEqual(core_site.get('fs.trash.checkpoint.interval'), '720')
+
+    def test_trash_checkpoint_exceeds_interval_error(self):
+        services = _build_services(
+            cloud_env={'azure_storage_backend': 'adls_gen2'},
+            storage_site={
+                'azure.storage.account.name': 'myaccount',
+                'azure.storage.container.name': 'mycontainer',
+                'azure.storage.auth.type': 'managed_identity',
+                'azure.managed.identity.client.id': 'some-id',
+            },
+        )
+        services['configurations'].append(
+            {'core-site': {'properties': {'fs.trash.interval': '100', 'fs.trash.checkpoint.interval': '200'}}}
+        )
+        items = self.advisor.getServiceConfigurationsValidationItems({}, {}, services, {})
+        errors = [i for i in items if i['level'] == 'ERROR' and i['config-name'] == 'fs.trash.checkpoint.interval']
+        self.assertEqual(len(errors), 1)
+
+    def test_adls_secure_mode_with_storage_key_error(self):
+        services = _build_services(
+            cloud_env={'azure_storage_backend': 'adls_gen2'},
+            storage_site={
+                'azure.storage.account.name': 'myaccount',
+                'azure.storage.container.name': 'mycontainer',
+                'azure.storage.auth.type': 'storage_key',
+                'azure.storage.account.key': 'somekey',
+                'azure.adls.secure.mode': 'true',
+            },
+        )
+        items = self.advisor.getServiceConfigurationsValidationItems({}, {}, services, {})
+        errors = [i for i in items if i['level'] == 'ERROR' and i['config-name'] == 'azure.adls.secure.mode']
+        self.assertEqual(len(errors), 1)
+        self.assertIn('abfss://', errors[0]['message'])
+
+
 class TestCrossServiceValidation(unittest.TestCase):
     """Tests for cross-service validation warnings."""
 

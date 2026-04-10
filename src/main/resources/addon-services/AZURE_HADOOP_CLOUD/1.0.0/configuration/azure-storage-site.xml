@@ -217,4 +217,40 @@
     <on-ambari-upgrade add="true"/>
   </property>
 
+  <property>
+    <name>azure.adls.secure.mode</name>
+    <value>false</value>
+    <display-name>ADLS Gen2 Secure Mode (abfss://)</display-name>
+    <description>Use abfss:// (TLS/OAuth-secured) instead of abfs:// for ADLS Gen2 access.
+      Requires OAuth-based authentication (Managed Identity or Service Principal).</description>
+    <value-attributes>
+      <type>boolean</type>
+    </value-attributes>
+    <depends-on>
+      <property>
+        <type>azure-cloud-env</type>
+        <name>azure_storage_backend</name>
+      </property>
+    </depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.storage.endpoint.suffix</name>
+    <value>core.windows.net</value>
+    <display-name>Storage Endpoint Suffix</display-name>
+    <description>Azure storage endpoint suffix. Use 'core.windows.net' for public Azure,
+      'core.usgovcloudapi.net' for Azure Government, 'core.chinacloudapi.cn' for Azure China.</description>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry><value>core.windows.net</value><label>Azure Public</label></entry>
+        <entry><value>core.usgovcloudapi.net</value><label>Azure Government</label></entry>
+        <entry><value>core.chinacloudapi.cn</value><label>Azure China</label></entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
 </configuration>

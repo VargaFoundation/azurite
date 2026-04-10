@@ -84,7 +84,26 @@
     <name>azure.vm.pool.worker.size</name>
     <value>Standard_D4_v3</value>
     <display-name>Worker Node VM Size</display-name>
-    <description>Primary Azure VM size for worker nodes.</description>
+    <description>Azure VM size for worker nodes. Select from common Hadoop-suitable sizes or enter a custom size.</description>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry><value>Standard_D4_v3</value><label>D4 v3 (4 vCPU, 16 GB)</label></entry>
+        <entry><value>Standard_D8_v3</value><label>D8 v3 (8 vCPU, 32 GB)</label></entry>
+        <entry><value>Standard_D16_v3</value><label>D16 v3 (16 vCPU, 64 GB)</label></entry>
+        <entry><value>Standard_D32_v3</value><label>D32 v3 (32 vCPU, 128 GB)</label></entry>
+        <entry><value>Standard_D4s_v3</value><label>D4s v3 (4 vCPU, 16 GB, Premium SSD)</label></entry>
+        <entry><value>Standard_D8s_v3</value><label>D8s v3 (8 vCPU, 32 GB, Premium SSD)</label></entry>
+        <entry><value>Standard_D16s_v3</value><label>D16s v3 (16 vCPU, 64 GB, Premium SSD)</label></entry>
+        <entry><value>Standard_E4_v3</value><label>E4 v3 (4 vCPU, 32 GB, Memory-optimized)</label></entry>
+        <entry><value>Standard_E8_v3</value><label>E8 v3 (8 vCPU, 64 GB, Memory-optimized)</label></entry>
+        <entry><value>Standard_E16_v3</value><label>E16 v3 (16 vCPU, 128 GB, Memory-optimized)</label></entry>
+        <entry><value>Standard_F4s_v2</value><label>F4s v2 (4 vCPU, 8 GB, Compute-optimized)</label></entry>
+        <entry><value>Standard_F8s_v2</value><label>F8s v2 (8 vCPU, 16 GB, Compute-optimized)</label></entry>
+        <entry><value>Standard_L8s_v2</value><label>L8s v2 (8 vCPU, 64 GB, Storage-optimized)</label></entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
 
@@ -185,11 +204,11 @@
     <name>azure.vm.pool.worker.type</name>
     <value>core</value>
     <display-name>Worker Node Type</display-name>
-    <description>Worker role: 'core' runs HDFS+compute, 'task' runs compute only (faster to scale).</description>
+    <description>Worker role: 'core' nodes run persistent storage cache + compute, 'task' nodes run compute only (faster to scale, no local data persistence). When using cloud storage (ADLS Gen2/WASB), both types use cloud storage for data.</description>
     <value-attributes>
       <type>value-list</type>
       <entries>
-        <entry><value>core</value><label>Core (HDFS + Compute)</label></entry>
+        <entry><value>core</value><label>Core (Persistent + Compute)</label></entry>
         <entry><value>task</value><label>Task (Compute Only)</label></entry>
       </entries>
       <selection_cardinality>1</selection_cardinality>
@@ -205,6 +224,42 @@
     <value-attributes>
       <empty-value-valid>true</empty-value-valid>
     </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.data.disk.type</name>
+    <value>Standard_LRS</value>
+    <display-name>Worker Node Data Disk Type</display-name>
+    <description>Managed disk type for worker node data disks. Can differ from OS disk type to optimize cost.</description>
+    <value-attributes>
+      <type>value-list</type>
+      <entries>
+        <entry><value>Premium_LRS</value><label>Premium SSD</label></entry>
+        <entry><value>StandardSSD_LRS</value><label>Standard SSD</label></entry>
+        <entry><value>Standard_LRS</value><label>Standard HDD</label></entry>
+        <entry><value>UltraSSD_LRS</value><label>Ultra SSD</label></entry>
+      </entries>
+      <selection_cardinality>1</selection_cardinality>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.accelerated.networking</name>
+    <value>true</value>
+    <display-name>Worker Accelerated Networking</display-name>
+    <description>Enable accelerated networking (SR-IOV) for worker NICs. Lower latency and higher throughput. Requires a supported VM size (most D/E/F series v3+).</description>
+    <value-attributes><type>boolean</type></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.pool.worker.ephemeral.os.disk</name>
+    <value>false</value>
+    <display-name>Worker Ephemeral OS Disk</display-name>
+    <description>Use ephemeral OS disk for workers. Faster boot and lower cost but OS state is lost on deallocation. Best for stateless compute-only (task) workers.</description>
+    <value-attributes><type>boolean</type></value-attributes>
     <on-ambari-upgrade add="true"/>
   </property>
 

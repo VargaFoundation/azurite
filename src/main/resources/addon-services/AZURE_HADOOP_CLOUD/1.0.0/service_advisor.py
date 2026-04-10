@@ -64,6 +64,7 @@ class AzureHadoopCloudServiceAdvisor(service_advisor.ServiceAdvisor):
         account = props.get('azure-storage-site', {}).get('azure.storage.account.name', '')
         container = props.get('azure-storage-site', {}).get('azure.storage.container.name', '')
         auth_type = props.get('azure-storage-site', {}).get('azure.storage.auth.type', 'managed_identity')
+        endpoint_suffix = props.get('azure-storage-site', {}).get('azure.storage.endpoint.suffix', 'core.windows.net')
 
         # Ensure core-site config type exists in recommendations
         if 'core-site' not in configurations:
@@ -71,8 +72,10 @@ class AzureHadoopCloudServiceAdvisor(service_advisor.ServiceAdvisor):
         core_site = configurations['core-site']['properties']
 
         if backend == 'adls_gen2' and account and container:
-            fqdn = '{0}.dfs.core.windows.net'.format(account)
-            core_site['fs.defaultFS'] = 'abfs://{0}@{1}/'.format(container, fqdn)
+            fqdn = '{0}.dfs.{1}'.format(account, endpoint_suffix)
+            adls_secure = props.get('azure-storage-site', {}).get('azure.adls.secure.mode', 'false')
+            adls_scheme = 'abfss' if adls_secure == 'true' else 'abfs'
+            core_site['fs.defaultFS'] = '{0}://{1}@{2}/'.format(adls_scheme, container, fqdn)
             core_site['fs.abfs.impl'] = 'org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem'
             core_site['fs.abfss.impl'] = 'org.apache.hadoop.fs.azurebfs.SecureAzureBlobFileSystem'
 
@@ -104,7 +107,7 @@ class AzureHadoopCloudServiceAdvisor(service_advisor.ServiceAdvisor):
                     core_site['fs.azure.account.oauth2.client.id.{0}'.format(fqdn)] = client_id
 
         elif backend == 'wasb' and account and container:
-            fqdn = '{0}.blob.core.windows.net'.format(account)
+            fqdn = '{0}.blob.{1}'.format(account, endpoint_suffix)
             secure = props.get('azure-storage-site', {}).get('azure.wasb.secure.mode', 'true')
             scheme = 'wasbs' if secure == 'true' else 'wasb'
             core_site['fs.defaultFS'] = '{0}://{1}@{2}/'.format(scheme, container, fqdn)
@@ -115,6 +118,27 @@ class AzureHadoopCloudServiceAdvisor(service_advisor.ServiceAdvisor):
                 key = props.get('azure-storage-site', {}).get('azure.storage.account.key', '')
                 if key:
                     core_site['fs.azure.account.key.{0}'.format(fqdn)] = key
+
+        # ABFS/WASB performance tuning defaults
+        if backend in ('adls_gen2', 'wasb'):
+            tuning_defaults = {
+                'fs.azure.read.request.size': '4194304',
+                'fs.azure.write.request.size': '8388608',
+                'fs.azure.block.size': '268435456',
+                'fs.azure.io.retry.max.retries': '3',
+                'fs.azure.io.retry.backoff.interval': '3000',
+                'fs.azure.threads.max': '16',
+                'fs.azure.enable.autothrottling': 'true',
+                'fs.azure.readaheadqueue.depth': '2',
+            }
+            for key, default_val in tuning_defaults.items():
+                if key not in core_site:
+                    core_site[key] = default_val
+            # Trash defaults for cloud storage
+            if 'fs.trash.interval' not in core_site:
+                core_site['fs.trash.interval'] = '1440'
+            if 'fs.trash.checkpoint.interval' not in core_site:
+                core_site['fs.trash.checkpoint.interval'] = '720'
 
         # Configure dependent Hadoop services for cloud storage
         default_fs = core_site.get('fs.defaultFS', '')
@@ -219,6 +243,36 @@ class AzureHadoopCloudServiceAdvisor(service_advisor.ServiceAdvisor):
                             'config-type': 'azure-storage-site',
                             'config-name': field
                         })
+
+        # Validate ADLS secure mode requires OAuth-based auth
+        if backend == 'adls_gen2':
+            adls_secure = props.get('azure-storage-site', {}).get('azure.adls.secure.mode', 'false')
+            auth_type_val = props.get('azure-storage-site', {}).get('azure.storage.auth.type', '')
+            if adls_secure == 'true' and auth_type_val == 'storage_key':
+                items.append({
+                    'type': 'configuration',
+                    'level': 'ERROR',
+                    'message': 'ADLS Secure Mode (abfss://) requires OAuth-based authentication. '
+                               'Storage Account Key cannot be used with abfss://.',
+                    'config-type': 'azure-storage-site',
+                    'config-name': 'azure.adls.secure.mode'
+                })
+
+        # Validate trash checkpoint <= trash interval
+        try:
+            trash_interval = int(props.get('core-site', {}).get('fs.trash.interval', '1440'))
+            trash_checkpoint = int(props.get('core-site', {}).get('fs.trash.checkpoint.interval', '720'))
+            if trash_interval > 0 and trash_checkpoint > trash_interval:
+                items.append({
+                    'type': 'configuration',
+                    'level': 'ERROR',
+                    'message': 'Trash checkpoint interval ({0}) must be <= trash interval ({1}).'.format(
+                        trash_checkpoint, trash_interval),
+                    'config-type': 'core-site',
+                    'config-name': 'fs.trash.checkpoint.interval'
+                })
+        except (ValueError, TypeError):
+            pass
 
         # Cross-service validation: warn if dependent services use hdfs:// paths with cloud backend
         if backend in ('adls_gen2', 'wasb'):

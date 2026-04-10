@@ -23,6 +23,14 @@
         <type>azure-storage-site</type>
         <name>azure.storage.container.name</name>
       </property>
+      <property>
+        <type>azure-storage-site</type>
+        <name>azure.storage.endpoint.suffix</name>
+      </property>
+      <property>
+        <type>azure-storage-site</type>
+        <name>azure.adls.secure.mode</name>
+      </property>
     </depends-on>
     <on-ambari-upgrade add="true"/>
   </property>
@@ -56,6 +64,109 @@
     <value>org.apache.hadoop.fs.azure.NativeAzureFileSystem$Secure</value>
     <display-name>WASBS Implementation</display-name>
     <description>Filesystem implementation class for wasbs:// (secure) scheme.</description>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <!-- ABFS Performance Tuning -->
+
+  <property>
+    <name>fs.azure.read.request.size</name>
+    <value>4194304</value>
+    <display-name>ABFS Read Buffer Size</display-name>
+    <description>Size of read requests in bytes (default 4 MB). Larger values improve sequential read throughput.</description>
+    <value-attributes><type>int</type><minimum>262144</minimum><maximum>104857600</maximum><unit>bytes</unit></value-attributes>
+    <depends-on><property><type>azure-cloud-env</type><name>azure_storage_backend</name></property></depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>fs.azure.write.request.size</name>
+    <value>8388608</value>
+    <display-name>ABFS Write Buffer Size</display-name>
+    <description>Size of write buffer in bytes (default 8 MB). Larger values reduce write API calls.</description>
+    <value-attributes><type>int</type><minimum>262144</minimum><maximum>104857600</maximum><unit>bytes</unit></value-attributes>
+    <depends-on><property><type>azure-cloud-env</type><name>azure_storage_backend</name></property></depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>fs.azure.block.size</name>
+    <value>268435456</value>
+    <display-name>ABFS Block Size</display-name>
+    <description>Block size for Azure Blob writes (default 256 MB). Affects parallelism of large file uploads.</description>
+    <value-attributes><type>int</type><minimum>1048576</minimum><maximum>536870912</maximum><unit>bytes</unit></value-attributes>
+    <depends-on><property><type>azure-cloud-env</type><name>azure_storage_backend</name></property></depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>fs.azure.io.retry.max.retries</name>
+    <value>3</value>
+    <display-name>ABFS Max I/O Retries</display-name>
+    <description>Maximum number of retries for failed I/O operations.</description>
+    <value-attributes><type>int</type><minimum>0</minimum><maximum>30</maximum></value-attributes>
+    <depends-on><property><type>azure-cloud-env</type><name>azure_storage_backend</name></property></depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>fs.azure.io.retry.backoff.interval</name>
+    <value>3000</value>
+    <display-name>ABFS Retry Backoff Interval (ms)</display-name>
+    <description>Initial backoff interval between retries in milliseconds.</description>
+    <value-attributes><type>int</type><minimum>100</minimum><maximum>60000</maximum><unit>ms</unit></value-attributes>
+    <depends-on><property><type>azure-cloud-env</type><name>azure_storage_backend</name></property></depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>fs.azure.threads.max</name>
+    <value>16</value>
+    <display-name>ABFS Concurrent I/O Threads</display-name>
+    <description>Maximum number of concurrent I/O threads for Azure operations.</description>
+    <value-attributes><type>int</type><minimum>1</minimum><maximum>128</maximum></value-attributes>
+    <depends-on><property><type>azure-cloud-env</type><name>azure_storage_backend</name></property></depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>fs.azure.enable.autothrottling</name>
+    <value>true</value>
+    <display-name>ABFS Auto-Throttling</display-name>
+    <description>Enable automatic request throttling to handle Azure rate limits gracefully.</description>
+    <value-attributes><type>boolean</type></value-attributes>
+    <depends-on><property><type>azure-cloud-env</type><name>azure_storage_backend</name></property></depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>fs.azure.readaheadqueue.depth</name>
+    <value>2</value>
+    <display-name>ABFS Read-Ahead Queue Depth</display-name>
+    <description>Number of blocks to prefetch during sequential reads. Higher values improve throughput at the cost of memory.</description>
+    <value-attributes><type>int</type><minimum>0</minimum><maximum>16</maximum></value-attributes>
+    <depends-on><property><type>azure-cloud-env</type><name>azure_storage_backend</name></property></depends-on>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <!-- Trash / Recycle Bin -->
+
+  <property>
+    <name>fs.trash.interval</name>
+    <value>1440</value>
+    <display-name>Trash Interval (minutes)</display-name>
+    <description>Minutes between trash checkpoints. Deleted files can be recovered within this window. Default 1440 (24 hours). Set to 0 to disable.</description>
+    <value-attributes><type>int</type><minimum>0</minimum><maximum>43200</maximum><unit>minutes</unit></value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>fs.trash.checkpoint.interval</name>
+    <value>720</value>
+    <display-name>Trash Checkpoint Interval (minutes)</display-name>
+    <description>Minutes between trash checkpoint creation. Must be &lt;= fs.trash.interval.</description>
+    <value-attributes><type>int</type><minimum>0</minimum><maximum>43200</maximum><unit>minutes</unit></value-attributes>
+    <depends-on><property><type>core-site</type><name>fs.trash.interval</name></property></depends-on>
     <on-ambari-upgrade add="true"/>
   </property>
 

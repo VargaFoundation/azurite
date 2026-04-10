@@ -15,8 +15,9 @@ class AzureHadoopCloudServiceCheck(Script):
         env.set_params(params)
 
         if params.azure_storage_backend == 'adls_gen2':
-            fqdn = '{0}.dfs.core.windows.net'.format(params.storage_account_name)
-            test_uri = 'abfs://{0}@{1}/'.format(params.storage_container_name, fqdn)
+            fqdn = '{0}.dfs.{1}'.format(params.storage_account_name, params.storage_endpoint_suffix)
+            adls_scheme = 'abfss' if params.adls_secure_mode == 'true' else 'abfs'
+            test_uri = '{0}://{1}@{2}/'.format(adls_scheme, params.storage_container_name, fqdn)
             Execute(format('hdfs dfs -ls {test_uri}'),
                     user=params.azure_cloud_user,
                     logoutput=False,
@@ -24,7 +25,7 @@ class AzureHadoopCloudServiceCheck(Script):
                     try_sleep=10)
 
         elif params.azure_storage_backend == 'wasb':
-            fqdn = '{0}.blob.core.windows.net'.format(params.storage_account_name)
+            fqdn = '{0}.blob.{1}'.format(params.storage_account_name, params.storage_endpoint_suffix)
             scheme = 'wasbs' if params.wasb_secure_mode == 'true' else 'wasb'
             test_uri = '{0}://{1}@{2}/'.format(scheme, params.storage_container_name, fqdn)
             Execute(format('hdfs dfs -ls {test_uri}'),

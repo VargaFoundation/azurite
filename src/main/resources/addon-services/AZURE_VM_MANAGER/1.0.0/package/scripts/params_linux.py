@@ -47,6 +47,9 @@ vm_ambari_server_url = config['configurations'].get('azure-vm-manager-site', {})
 vm_tags_json = config['configurations'].get('azure-vm-manager-site', {}).get('azure.vm.tags',
                                                                              '{"managed-by": "ambari-azure-mpack"}')
 vm_availability_zone = config['configurations'].get('azure-vm-manager-site', {}).get('azure.vm.availability.zone', '')
+vm_proximity_placement_group = config['configurations'].get('azure-vm-manager-site', {}).get('azure.vm.proximity.placement.group', '')
+vm_custom_image_id = config['configurations'].get('azure-vm-manager-site', {}).get('azure.vm.custom.image.id', '')
+vm_custom_cloud_init = config['configurations'].get('azure-vm-manager-site', {}).get('azure.vm.custom.cloud.init', '')
 
 try:
     vm_tags = json.loads(vm_tags_json)
@@ -75,6 +78,9 @@ worker_secondary_sizes = [s.strip() for s in pool.get('azure.vm.pool.worker.seco
                           if s.strip()]
 worker_spot_enabled = pool.get('azure.vm.pool.worker.spot.enabled', 'false') == 'true'
 worker_spot_max_price = float(pool.get('azure.vm.pool.worker.spot.max.price', '-1'))
+worker_data_disk_type = pool.get('azure.vm.pool.worker.data.disk.type', worker_disk_type)
+worker_accelerated_networking = pool.get('azure.vm.pool.worker.accelerated.networking', 'true') == 'true'
+worker_ephemeral_os_disk = pool.get('azure.vm.pool.worker.ephemeral.os.disk', 'false') == 'true'
 
 zk_size = pool.get('azure.vm.pool.zk.size', 'Standard_A2_v2')
 zk_count = int(pool.get('azure.vm.pool.zk.count', '3'))

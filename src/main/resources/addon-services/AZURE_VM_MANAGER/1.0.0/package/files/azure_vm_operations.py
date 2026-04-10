@@ -119,7 +119,9 @@ class AzureVmOperations:
 
     @_retry_azure()
     def create_vm(self, vm_name, vm_size, role='worker', data_disk_count=0, data_disk_size_gb=512,
-                  disk_type='Standard_LRS', os_disk_size_gb=128, spot=False, spot_max_price=-1):
+                  disk_type='Standard_LRS', data_disk_type=None, os_disk_size_gb=128,
+                  spot=False, spot_max_price=-1,
+                  accelerated_networking=True, ephemeral_os_disk=False):
         """
         Create a single Azure VM with NIC and optional data disks.
         Returns the VM creation result.
@@ -151,6 +153,9 @@ class AzureVmOperations:
             'tags': self.config.get('tags', {})
         }
 
+        if accelerated_networking:
+            nic_params['enable_accelerated_networking'] = True
+
         nsg_name = net_cfg.get('nsg_name', '')
         if nsg_name:
             nsg_id = (
@@ -177,26 +182,34 @@ class AzureVmOperations:
             'tags': {**self.config.get('tags', {}), 'role': role, 'vm-name': vm_name},
             'hardware_profile': {'vm_size': vm_size},
             'storage_profile': {
-                'image_reference': {
-                    'publisher': image_cfg.get('publisher', 'Canonical'),
-                    'offer': image_cfg.get('offer', '0001-com-ubuntu-server-focal'),
-                    'sku': image_cfg.get('sku', '20_04-lts-gen2'),
-                    'version': image_cfg.get('version', 'latest'),
-                },
-                'os_disk': {
+                'image_reference': ({'id': self.config.get('custom_image_id')}
+                                    if self.config.get('custom_image_id')
+                                    else {
+                                        'publisher': image_cfg.get('publisher', 'Canonical'),
+                                        'offer': image_cfg.get('offer', '0001-com-ubuntu-server-focal'),
+                                        'sku': image_cfg.get('sku', '20_04-lts-gen2'),
+                                        'version': image_cfg.get('version', 'latest'),
+                                    }),
+                'os_disk': ({
+                    'name': '{0}-osdisk'.format(vm_name),
+                    'caching': 'ReadOnly',
+                    'create_option': 'FromImage',
+                    'diff_disk_settings': {'option': 'Local'},
+                    'disk_size_gb': os_disk_size_gb,
+                } if ephemeral_os_disk else {
                     'name': '{0}-osdisk'.format(vm_name),
                     'caching': 'ReadWrite',
                     'create_option': 'FromImage',
                     'managed_disk': {'storage_account_type': disk_type},
                     'disk_size_gb': os_disk_size_gb,
-                },
+                }),
                 'data_disks': [
                     {
                         'lun': i,
                         'name': '{0}-datadisk-{1}'.format(vm_name, i),
                         'create_option': 'Empty',
                         'disk_size_gb': data_disk_size_gb,
-                        'managed_disk': {'storage_account_type': disk_type},
+                        'managed_disk': {'storage_account_type': data_disk_type or disk_type},
                     }
                     for i in range(data_disk_count)
                 ]
@@ -231,6 +244,15 @@ class AzureVmOperations:
         az = self.config.get('availability_zone', '')
         if az:
             vm_params['zones'] = [str(az)]
+
+        # Proximity Placement Group
+        ppg_name = self.config.get('proximity_placement_group', '')
+        if ppg_name:
+            ppg_id = (
+                '/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Compute'
+                '/proximityPlacementGroups/{ppg}'
+            ).format(sub=self.subscription_id, rg=self.resource_group, ppg=ppg_name)
+            vm_params['proximity_placement_group'] = {'id': ppg_id}
 
         logger.info('Creating VM %s (size=%s, role=%s, spot=%s)', vm_name, vm_size, role, spot)
         vm_poller = self._compute_client.virtual_machines.begin_create_or_update(
@@ -408,6 +430,9 @@ if [ -n "$AMBARI_URL" ]; then
     fi
 fi
 """.format(safe_url=safe_url)
+        custom_script = self.config.get('custom_cloud_init', '')
+        if custom_script:
+            script += '\n# Custom user-provided bootstrap\n' + custom_script + '\n'
         return base64.b64encode(script.encode()).decode()
 
 
@@ -493,9 +518,12 @@ class VmManagerRequestHandler(BaseHTTPRequestHandler):
                     data_disk_count=pool_cfg.get('data_disks', 4),
                     data_disk_size_gb=pool_cfg.get('data_disk_size_gb', 512),
                     disk_type=pool_cfg.get('disk_type', 'Standard_LRS'),
+                    data_disk_type=pool_cfg.get('data_disk_type'),
                     os_disk_size_gb=pool_cfg.get('disk_size_gb', 128),
                     spot=pool_cfg.get('spot_enabled', False),
                     spot_max_price=pool_cfg.get('spot_max_price', -1),
+                    accelerated_networking=pool_cfg.get('accelerated_networking', True),
+                    ephemeral_os_disk=pool_cfg.get('ephemeral_os_disk', False),
                 )
                 results.append({'name': vm_name, 'status': 'created'})
             except Exception as e:

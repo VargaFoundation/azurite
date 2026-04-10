@@ -131,4 +131,38 @@
     <on-ambari-upgrade add="true"/>
   </property>
 
+  <property>
+    <name>azure.vm.proximity.placement.group</name>
+    <value></value>
+    <display-name>Proximity Placement Group</display-name>
+    <description>Name of the Azure Proximity Placement Group for co-locating VMs to minimize inter-node latency. The PPG must exist in the same resource group and region.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.custom.image.id</name>
+    <value></value>
+    <display-name>Custom VM Image Resource ID</display-name>
+    <description>Full Azure resource ID of a custom VM image. When set, overrides marketplace image settings. Leave empty to use marketplace image.</description>
+    <value-attributes>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
+  <property>
+    <name>azure.vm.custom.cloud.init</name>
+    <value></value>
+    <display-name>Custom Bootstrap Script</display-name>
+    <description>Additional shell commands appended to the cloud-init bootstrap script. Runs after Ambari agent installation as root. Use for custom packages, mounts, or configuration.</description>
+    <value-attributes>
+      <type>multiLine</type>
+      <empty-value-valid>true</empty-value-valid>
+    </value-attributes>
+    <on-ambari-upgrade add="true"/>
+  </property>
+
 </configuration>
